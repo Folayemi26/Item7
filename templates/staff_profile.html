@@ -1,0 +1,27 @@
+{% extends "staff_layout.html" %}
+{% block staff_content %}
+
+<section class="panel-card">
+    <div class="panel-header">
+        <div>
+            <h2>My Profile</h2>
+        </div>
+    </div>
+    <div class="panel-body">
+        <div class="portal-profile-card">
+            <div class="profile-avatar">{{ user.first[0]|upper }}</div>
+            <div>
+                <strong>{{ user.first }} {{ user.last }}</strong>
+                <p>{{ user.email }}</p>
+                <p>{{ user.phone or "No phone on file" }}</p>
+            </div>
+        </div>
+        <p class="portal-note">
+            Keep your contact, emergency, and address information current for scheduling alerts.
+        </p>
+        <a href="{{ url_for('update_profile') }}" class="button secondary">Edit profile</a>
+    </div>
+</section>
+
+{% endblock %}
+

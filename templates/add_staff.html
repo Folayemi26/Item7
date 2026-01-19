@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-header">
+    <h1 class="page-title">Add New Staff Member</h1>
+    <p class="page-subtitle">
+        Create a staff account that can be used for scheduling and internal access.
+    </p>
+</div>
+
+<div class="form-card">
+    <form action="{{ url_for('add_staff_submit') }}" method="POST">
+        <label for="email">Email</label><br>
+        <input id="email" type="email" name="email" required><br>
+
+        <label for="password">Temporary Password</label><br>
+        <input id="password" type="password" name="password" required><br>
+
+        <label for="first">First Name</label><br>
+        <input id="first" type="text" name="first" required><br>
+
+        <label for="last">Last Name</label><br>
+        <input id="last" type="text" name="last" required><br>
+
+        <label for="phone">Phone</label><br>
+        <input id="phone" type="text" name="phone"><br>
+
+        <label for="address">Address</label><br>
+        <input id="address" type="text" name="address"><br>
+
+        <label for="dob">DOB</label><br>
+        <input id="dob" type="text" name="dob" placeholder="01/01/1990"><br>
+
+        <label for="sex">Sex</label><br>
+        <select id="sex" name="sex">
+            <option value="">Select...</option>
+            <option value="M">Male</option>
+            <option value="F">Female</option>
+            <option value="Other">Other</option>
+        </select><br>
+
+        <div class="form-actions">
+            <input type="submit" value="Add Staff" class="button">
+            <a href="{{ url_for('staff_page') }}" class="button secondary" style="text-decoration: none;">Cancel</a>
+        </div>
+    </form>
+</div>
+
+{% endblock %}

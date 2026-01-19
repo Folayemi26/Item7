@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-header">
+    <h1 class="page-title">All Orders</h1>
+    <p class="page-subtitle">
+        Orders placed through the food truck site. Allergy risks are highlighted for quick review.
+    </p>
+</div>
+
+{% if orders|length == 0 %}
+    <p>No orders found yet.</p>
+{% else %}
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Customer</th>
+                    <th>Email</th>
+                    <th>Items</th>
+                    <th>Allergy Info</th>
+                    <th>Safe?</th>
+                    <th>Time</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for o in orders %}
+                <tr {% if o.is_safe == 'NO' %}style="background-color:#ffe4e4;"{% endif %}>
+                    <td>{{ o.order_id }}</td>
+                    <td>{{ o.customer_name }}</td>
+                    <td>{{ o.customer_email }}</td>
+                    <td>{{ o.item }}</td>
+                    <td>{{ o.allergy_info }}</td>
+                    <td>{{ o.is_safe }}</td>
+                    <td>{{ o.timestamp }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endif %}
+
+{% endblock %}

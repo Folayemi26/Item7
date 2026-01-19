@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: item7-food-truck
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ADMIN_EMAILS
+        sync: false
+      - key: FLASK_ENV
+        value: production
+

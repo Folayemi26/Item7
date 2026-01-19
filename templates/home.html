@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="hero">
+    <div class="hero-text">
+        <div class="hero-kicker">Hot & Fresh on Campus</div>
+        <div class="hero-title">{{ truck.name }}</div>
+        <div class="hero-subtitle">
+            Craving crispy chicken, wings, or a quick combo? Order online and pick up at
+            <strong>{{ truck.location }}</strong>. We keep track of allergies so your food is both
+            delicious and safe.
+        </div>
+        <div class="hero-buttons">
+            <a href="{{ url_for('menu_page') }}" class="button">Order Now</a>
+            <a href="{{ url_for('cart_page') }}" class="button secondary">
+                View Cart{% if cart_count %} ({{ cart_count }}){% endif %}
+            </a>
+        </div>
+        <div class="hero-meta">
+            Staff in system: {{ staff_count }} · Shifts scheduled: {{ schedule_count }}
+        </div>
+    </div>
+    <div class="hero-image">
+        <img src="{{ url_for('static', filename='images/logo-hero.svg') }}" alt="Item7 Food Truck logo" onerror="this.src='{{ url_for('static', filename='images/logo.svg') }}'">
+    </div>
+</div>
+
+<section class="menu-section">
+    <div class="section-header">
+        <div>
+            <h2>🍽️ Popular Picks</h2>
+            <div class="section-subtitle">Customer favorites from your food truck menu.</div>
+        </div>
+        <a href="{{ url_for('menu_page') }}" class="button secondary">See Full Menu →</a>
+    </div>
+
+    <div class="menu-grid">
+        {% if featured_items %}
+            {% for item in featured_items %}
+            <div class="menu-card">
+                <img src="{{ url_for('static', filename='images/' ~ item.image) }}" alt="{{ item.name }}">
+                <h3>{{ item.name }}</h3>
+                <p class="menu-meta">
+                    {{ item.category }}{% if item.vegan %} · Vegan{% endif %}
+                </p>
+                <p>{{ item.description }}</p>
+                <div class="menu-tags">
+                    {% if item.category == "Non-Veg" %}
+                        <span class="menu-tag">Crispy</span>
+                    {% endif %}
+                    {% if item.vegan %}
+                        <span class="menu-tag">Plant-Based</span>
+                    {% endif %}
+                </div>
+                <p class="price">${{ "%.2f"|format(item.price) }}</p>
+                <form action="{{ url_for('add_to_cart') }}" method="POST">
+                    <input type="hidden" name="item_name" value="{{ item.name }}">
+                    <input type="hidden" name="price" value="{{ item.price }}">
+                    <input type="hidden" name="redirect_to" value="{{ url_for('home') }}">
+                    <button type="submit" class="button">Add to Cart</button>
+                </form>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="menu-empty" style="grid-column: 1 / -1; text-align: center; padding: 40px;">
+                <p style="font-size: 18px; color: #666; margin-bottom: 16px;">🍽️ Menu items are being loaded...</p>
+                <a href="{{ url_for('menu_page') }}" class="button">View Full Menu</a>
+            </div>
+        {% endif %}
+    </div>
+</section>
+
+<!-- Contact & Location Section -->
+<section class="contact-section">
+    <div class="contact-grid">
+        <div class="contact-card">
+            <div class="contact-icon">📍</div>
+            <h3>Find Us</h3>
+            <p class="contact-info">Grambling State University</p>
+            <p class="contact-detail">{{ truck.location }}</p>
+        </div>
+        <div class="contact-card">
+            <div class="contact-icon">📞</div>
+            <h3>Call Us</h3>
+            <p class="contact-info">
+                <a href="tel:6142904260" class="phone-link">(614) 290-4260</a>
+            </p>
+            <p class="contact-detail">Open for lunch & late-night cravings</p>
+        </div>
+        <div class="contact-card">
+            <div class="contact-icon">🕐</div>
+            <h3>Hours</h3>
+            <p class="contact-info">Monday - Friday</p>
+            <p class="contact-detail">11:00 AM - 10:00 PM</p>
+        </div>
+    </div>
+</section>
+
+<!-- Active Deals & Social Media Section -->
+<section class="social-section">
+    <div class="section-header">
+        <div>
+            <h2>🎉 Special Deals & Promotions</h2>
+            <div class="section-subtitle">Check out our latest offers and follow us on Instagram for more!</div>
+        </div>
+        <div class="social-links">
+            <a href="https://www.instagram.com/CHARLESS_XN" target="_blank" rel="noopener noreferrer" class="social-link" title="Follow us on Instagram">
+                📷 Follow @CHARLESS_XN
+            </a>
+        </div>
+    </div>
+    
+    {% if active_deals %}
+    <div class="deals-feed">
+        {% for deal in active_deals %}
+        <div class="deal-card">
+            <div class="deal-badge">🔥 HOT DEAL</div>
+            <div class="deal-content">
+                <h3>{{ deal.title }}</h3>
+                <p class="deal-description">{{ deal.description }}</p>
+                <div class="deal-discount">
+                    <span class="discount-amount">{{ deal.discount }}</span>
+                </div>
+                <a href="https://www.instagram.com/CHARLESS_XN" target="_blank" rel="noopener noreferrer" class="deal-cta">
+                    View on Instagram →
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="no-deals">
+        <p>No active deals at the moment. Check back soon or follow us on Instagram for updates!</p>
+        <a href="https://www.instagram.com/CHARLESS_XN" target="_blank" rel="noopener noreferrer" class="button">
+            📷 Follow @CHARLESS_XN on Instagram
+        </a>
+    </div>
+    {% endif %}
+</section>
+
+<script>
+// Animate menu cards and deals on scroll
+document.addEventListener('DOMContentLoaded', function() {
+    const observerOptions = {
+        threshold: 0.1,
+        rootMargin: '0px 0px -50px 0px'
+    };
+    
+    const observer = new IntersectionObserver(function(entries) {
+        entries.forEach((entry, index) => {
+            if (entry.isIntersecting) {
+                setTimeout(() => {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                }, index * 100);
+            }
+        });
+    }, observerOptions);
+    
+    // Observe menu cards
+    document.querySelectorAll('.menu-card').forEach(card => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(20px)';
+        card.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+        observer.observe(card);
+    });
+    
+    // Observe deal cards
+    document.querySelectorAll('.deal-card').forEach(deal => {
+        deal.style.opacity = '0';
+        deal.style.transform = 'translateY(20px)';
+        deal.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+        observer.observe(deal);
+    });
+    
+    // Smooth scroll for anchor links
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+            const href = this.getAttribute('href');
+            if (href !== '#' && href.length > 1) {
+                e.preventDefault();
+                const target = document.querySelector(href);
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            }
+        });
+    });
+});
+</script>
+
+{% endblock %}

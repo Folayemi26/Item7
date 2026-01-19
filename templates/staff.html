@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-header">
+    <h1 class="page-title">Staff Directory</h1>
+    <a href="{{ url_for('add_staff_form') }}" class="button">Add Staff Member</a>
+</div>
+
+<p class="page-subtitle">
+    All staff registered in the system. These accounts can be assigned to work schedules and managed by admins.
+</p>
+
+{% if staff|length == 0 %}
+    <p>No staff found yet. Use “Add Staff Member” to create the first profile.</p>
+{% else %}
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th>Full Name</th>
+                    <th>Email</th>
+                    <th>Phone</th>
+                    <th>DOB</th>
+                    <th>Sex</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in staff %}
+                <tr>
+                    <td>{{ s.first }} {{ s.last }}</td>
+                    <td>{{ s.email }}</td>
+                    <td>{{ s.phone }}</td>
+                    <td>{{ s.dob }}</td>
+                    <td>{{ s.sex }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endif %}
+
+{% endblock %}

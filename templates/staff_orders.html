@@ -1,0 +1,344 @@
+{% extends "staff_layout.html" %}
+{% block staff_content %}
+
+<div class="staff-page-header">
+    <h1>Orders</h1>
+    <p class="page-subtitle">View and manage all customer orders</p>
+</div>
+
+<!-- Search and Filters -->
+<div class="orders-controls">
+    <form method="GET" action="{{ url_for('staff_orders') }}" style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+        <input type="text" name="q" value="{{ search_query }}" placeholder="Search orders..." 
+               style="flex: 1; min-width: 200px; padding: 10px; border: 1px solid #ccc; border-radius: 6px;">
+        <select name="status" style="padding: 10px; border: 1px solid #ccc; border-radius: 6px;">
+            <option value="all" {% if filter_status == 'all' %}selected{% endif %}>All Status</option>
+            <option value="pending" {% if filter_status == 'pending' %}selected{% endif %}>Pending</option>
+            <option value="preparation done" {% if filter_status == 'preparation done' %}selected{% endif %}>Preparation Done</option>
+            <option value="ready for delivery" {% if filter_status == 'ready for delivery' %}selected{% endif %}>Ready for Delivery</option>
+        </select>
+        <button type="submit" class="button">Search</button>
+        <a href="{{ url_for('staff_orders') }}" class="button secondary">Clear</a>
+    </form>
+</div>
+
+<!-- Allergy Alert Banner -->
+{% if orders %}
+    {% set allergy_count = orders|selectattr('allergy_info')|list|length %}
+    {% if allergy_count > 0 %}
+    <div class="allergy-alert-banner">
+        <strong>⚠️ ALLERGY ALERT:</strong> {{ allergy_count }} order(s) have allergy information. Please review carefully before preparation.
+    </div>
+    {% endif %}
+{% endif %}
+
+<!-- Orders List -->
+<div class="orders-list">
+    {% if orders|length == 0 %}
+        <div class="empty-state">
+            <p>No orders found.</p>
+        </div>
+    {% else %}
+        {% for order in orders %}
+        {% set order_status = order.get('status', 'Pending') %}
+        <div class="order-card {% if order.is_safe == 'NO' %}order-unsafe{% endif %} {% if order.allergy_info %}order-has-allergy{% endif %}">
+            <div class="order-header">
+                <div>
+                    <div class="order-id">Order #{{ order.order_id }}</div>
+                    <div class="order-status-badge status-{{ order_status.lower().replace(' ', '-') }}">
+                        {{ order_status }}
+                    </div>
+                </div>
+                <div class="order-time">{{ order.timestamp }}</div>
+            </div>
+            
+            <div class="order-body">
+                <div class="order-customer">
+                    <strong>{{ order.customer_name }}</strong>
+                    <span class="order-email">{{ order.customer_email }}</span>
+                </div>
+                
+                <div class="order-items">
+                    <strong>Items:</strong> {{ order.item }}
+                </div>
+                
+                {% if order.allergy_info %}
+                <div class="order-allergy-alert">
+                    <div class="allergy-icon">⚠️</div>
+                    <div class="allergy-content">
+                        <strong>ALLERGY INFORMATION:</strong>
+                        <p>{{ order.allergy_info }}</p>
+                        {% if order.is_safe == 'NO' %}
+                        <span class="unsafe-badge">⚠️ UNSAFE - DO NOT PREPARE</span>
+                        {% else %}
+                        <span class="safe-badge">✓ Safe to prepare with caution</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% else %}
+                <div class="order-allergy-safe">
+                    <span class="safe-badge">✓ No allergies reported</span>
+                </div>
+                {% endif %}
+                
+                <!-- Order Status Actions -->
+                <div class="order-actions">
+                    {% if order_status == 'Pending' %}
+                    <form method="POST" action="{{ url_for('update_order_status') }}" style="display: inline;">
+                        <input type="hidden" name="order_id" value="{{ order.order_id }}">
+                        <input type="hidden" name="status" value="Preparation Done">
+                        <button type="submit" class="status-btn prep-done-btn" 
+                                onclick="return confirm('Mark Order #{{ order.order_id }} as Preparation Done?');">
+                            ✅ Preparation Done
+                        </button>
+                    </form>
+                    {% elif order_status == 'Preparation Done' %}
+                    <form method="POST" action="{{ url_for('update_order_status') }}" style="display: inline;">
+                        <input type="hidden" name="order_id" value="{{ order.order_id }}">
+                        <input type="hidden" name="status" value="Ready for Delivery">
+                        <button type="submit" class="status-btn delivery-btn" 
+                                onclick="return confirm('Mark Order #{{ order.order_id }} as Ready for Delivery?');">
+                            🚚 Hand Off to Delivery
+                        </button>
+                    </form>
+                    {% elif order_status == 'Ready for Delivery' %}
+                    <div class="status-complete">
+                        <span class="complete-badge">✅ Ready for Delivery</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    {% endif %}
+</div>
+
+<style>
+.orders-controls {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    margin-bottom: 20px;
+}
+
+.allergy-alert-banner {
+    background: #fff3cd;
+    border: 2px solid #ffc107;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 20px;
+    color: #856404;
+    font-weight: 500;
+}
+
+.orders-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.order-card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    border-left: 4px solid #007bff;
+    transition: transform 0.2s;
+}
+
+.order-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.12);
+}
+
+.order-card.order-has-allergy {
+    border-left-color: #ffc107;
+    background: #fffbf0;
+}
+
+.order-card.order-unsafe {
+    border-left-color: #dc3545;
+    background: #ffe4e4;
+}
+
+.order-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee;
+}
+
+.order-id {
+    font-size: 18px;
+    font-weight: bold;
+    color: #1a1a1a;
+}
+
+.order-time {
+    color: #666;
+    font-size: 14px;
+}
+
+.order-body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.order-customer {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.order-email {
+    color: #666;
+    font-size: 14px;
+}
+
+.order-items {
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.order-allergy-alert {
+    display: flex;
+    gap: 15px;
+    padding: 15px;
+    background: #fff3cd;
+    border: 2px solid #ffc107;
+    border-radius: 8px;
+    margin-top: 10px;
+}
+
+.allergy-icon {
+    font-size: 32px;
+}
+
+.allergy-content {
+    flex: 1;
+}
+
+.allergy-content strong {
+    color: #856404;
+    display: block;
+    margin-bottom: 8px;
+}
+
+.allergy-content p {
+    margin: 8px 0;
+    color: #856404;
+    font-weight: 500;
+}
+
+.order-allergy-safe {
+    padding: 10px;
+    background: #d4edda;
+    border: 1px solid #28a745;
+    border-radius: 6px;
+    margin-top: 10px;
+}
+
+.safe-badge {
+    color: #155724;
+    font-weight: 600;
+}
+
+.unsafe-badge {
+    display: inline-block;
+    background: #dc3545;
+    color: white;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-weight: bold;
+    margin-top: 8px;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #666;
+}
+
+.order-status-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-top: 5px;
+}
+
+.status-pending {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.status-preparation-done {
+    background: #cfe2ff;
+    color: #084298;
+}
+
+.status-ready-for-delivery {
+    background: #d1e7dd;
+    color: #0f5132;
+}
+
+.order-actions {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #eee;
+}
+
+.status-btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.3s;
+}
+
+.prep-done-btn {
+    background: #0d6efd;
+    color: white;
+}
+
+.prep-done-btn:hover {
+    background: #0b5ed7;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(13, 110, 253, 0.3);
+}
+
+.delivery-btn {
+    background: #198754;
+    color: white;
+}
+
+.delivery-btn:hover {
+    background: #157347;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(25, 135, 84, 0.3);
+}
+
+.status-complete {
+    padding: 10px 15px;
+    background: #d1e7dd;
+    border-radius: 6px;
+    display: inline-block;
+}
+
+.complete-badge {
+    color: #0f5132;
+    font-weight: 600;
+}
+</style>
+
+{% endblock %}
+

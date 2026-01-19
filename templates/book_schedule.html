@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-header">
+    <h1 class="page-title">Book Staff Work Schedule</h1>
+    <p class="page-subtitle">
+        Choose a staff member, a valid working day (Tuesday–Sunday), and a time slot to create a shift.
+    </p>
+</div>
+
+<div class="form-card">
+    <form action="{{ url_for('book_schedule_submit') }}" method="POST">
+        <label for="manager">Manager Name</label><br>
+        <input id="manager" type="text" name="manager" required><br>
+
+        <label for="staff_email">Staff Member</label><br>
+        <select id="staff_email" name="staff_email" required>
+            {% for s in staff %}
+                <option value="{{ s.email }}">
+                    {{ s.first }} {{ s.last }} ({{ s.email }})
+                </option>
+            {% endfor %}
+        </select><br>
+
+        <label for="date">Date</label><br>
+        <input id="date" type="date" name="date" required><br>
+
+        <label for="time">Time Slot</label><br>
+        <select id="time" name="time" required>
+            <option value="">Select time slot...</option>
+            {% for slot in ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'] %}
+                <option value="{{ slot }}">{{ slot }}</option>
+            {% endfor %}
+        </select><br>
+
+        <label for="work_time">Work Time Description</label><br>
+        <input id="work_time" type="text" name="work_time" placeholder="Morning shift 9-1" required><br>
+
+        <div class="form-actions">
+            <input type="submit" value="Book Schedule" class="button">
+        </div>
+    </form>
+</div>
+
+{% endblock %}

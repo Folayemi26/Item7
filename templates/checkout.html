@@ -1,0 +1,1144 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-header">
+    <h1>Checkout</h1>
+</div>
+
+<div class="checkout-container">
+    <div class="checkout-left">
+        <!-- Order Summary -->
+        <div class="checkout-section">
+            <h2>Order Summary</h2>
+            <div class="order-items">
+                {% for name, item in cart.items() %}
+                <div class="order-item">
+                    <span class="item-name">{{ name }}</span>
+                    <span class="item-qty">x{{ item['qty'] }}</span>
+                    <span class="item-price">${{ "%.2f"|format(item['price'] * item['qty']) }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="order-total">
+                <div class="total-line">
+                    <span>Subtotal:</span>
+                    <span>${{ "%.2f"|format(subtotal) }}</span>
+                </div>
+                <div class="total-line">
+                    <span>Tax ({{ "%.1f"|format(tax_rate * 100) }}%):</span>
+                    <span>${{ "%.2f"|format(tax_amount) }}</span>
+                </div>
+                <div class="total-line" id="tip-line" style="display: none;">
+                    <span>Tip:</span>
+                    <span id="tip-amount">$0.00</span>
+                </div>
+                <div class="total-line final-total">
+                    <strong>Total:</strong>
+                    <strong id="final-total">${{ "%.2f"|format(total) }}</strong>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tip Selection -->
+        <div class="checkout-section">
+            <h2>Add Tip (Optional)</h2>
+            <div class="tip-options">
+                <button type="button" class="tip-btn" data-tip="0">No Tip</button>
+                <button type="button" class="tip-btn" data-tip="10">10% (${{ "%.2f"|format(subtotal * 0.10) }})</button>
+                <button type="button" class="tip-btn" data-tip="15">15% (${{ "%.2f"|format(subtotal * 0.15) }})</button>
+                <button type="button" class="tip-btn" data-tip="20">20% (${{ "%.2f"|format(subtotal * 0.20) }})</button>
+                <button type="button" class="tip-btn" data-tip="25">25% (${{ "%.2f"|format(subtotal * 0.25) }})</button>
+            </div>
+            <div class="custom-tip" style="margin-top: 12px;">
+                <label for="custom_tip">Custom Amount:</label>
+                <input type="number" id="custom_tip" name="custom_tip" step="0.01" min="0" placeholder="0.00" style="width: 150px; margin-left: 8px;">
+                <input type="hidden" id="tip_percentage" name="tip_percentage" value="0">
+                <input type="hidden" id="tip_amount" name="tip_amount" value="0">
+            </div>
+        </div>
+
+        <!-- Delivery Location -->
+        <div class="checkout-section">
+            <h2>Delivery Location</h2>
+            <p class="section-hint">We'll try to detect your location automatically, or you can click "Use My Location" or search for an address</p>
+            
+            <div class="location-controls">
+                <button type="button" id="getLocationBtn" class="button location-btn">
+                    📍 Use My Location
+                </button>
+                <input type="text" id="addressSearch" placeholder="Search address..." class="address-search">
+            </div>
+            <p class="location-hint" style="font-size: 12px; color: #666; margin-top: 8px;">
+                💡 Your browser will ask for location permission. Click "Allow" to use your current location. You can also drag the marker on the map to adjust your delivery location.
+            </p>
+            
+            <div id="map" style="height: 300px; width: 100%; border-radius: 8px; margin-top: 15px; position: relative; z-index: 1;"></div>
+            
+            <input type="hidden" id="delivery_lat" name="delivery_lat">
+            <input type="hidden" id="delivery_lng" name="delivery_lng">
+            <textarea id="delivery_address" name="delivery_address" rows="2" 
+                      placeholder="Delivery address will appear here..." 
+                      style="margin-top: 15px; width: 100%;" required></textarea>
+        </div>
+
+        <!-- Customer Details -->
+        <div class="checkout-section">
+            <h2>Customer Details</h2>
+            {% if is_logged_in %}
+                <p class="info-text">You're logged in as <strong>{{ customer_email }}</strong></p>
+            {% endif %}
+            
+            <form id="checkoutForm" action="{{ url_for('checkout') }}" method="POST">
+                {% if is_logged_in %}
+                    <input type="hidden" name="customer_name" value="{{ customer_name }}">
+                    <input type="hidden" name="customer_email" value="{{ customer_email }}">
+                    <label>Name:</label>
+                    <input type="text" value="{{ customer_name }}" disabled style="background-color:#f5f5f5;">
+                    <label>Email:</label>
+                    <input type="email" value="{{ customer_email }}" disabled style="background-color:#f5f5f5;">
+                {% else %}
+                    <label>Name:</label>
+                    <input type="text" name="customer_name" value="{{ customer_name or '' }}" required>
+                    <label>Email:</label>
+                    <input type="email" name="customer_email" value="{{ customer_email or '' }}" required>
+                {% endif %}
+
+                <label>Allergies (if any):</label>
+                <textarea name="allergy_info" rows="3" placeholder="Example: I am allergic to gluten, nuts, milk"></textarea>
+        </div>
+    </div>
+
+    <div class="checkout-right">
+        <!-- Payment Method -->
+        <div class="checkout-section payment-section">
+            <h2>Payment Method</h2>
+            
+            <div class="payment-options">
+                <label class="payment-option">
+                    <input type="radio" name="payment_method" value="cash" checked>
+                    <span class="payment-label">
+                        <strong>💰 Cash on Delivery</strong>
+                        <small>Pay when your order arrives</small>
+                    </span>
+                </label>
+                
+                <label class="payment-option">
+                    <input type="radio" name="payment_method" value="stripe">
+                    <span class="payment-label">
+                        <strong>💳 Credit/Debit Card</strong>
+                        {% if stripe_demo_mode %}
+                        <small>Demo Mode - Test payments (no real charges)</small>
+                        {% else %}
+                        <small>Secure payment via Stripe</small>
+                        {% endif %}
+                    </span>
+                </label>
+            </div>
+
+            <!-- Stripe Payment Form (hidden by default) -->
+            <div id="stripePaymentForm" style="display: none; margin-top: 20px;">
+                {% if stripe_demo_mode %}
+                <div class="stripe-info" style="background: #fff3cd; border-left: 4px solid #ffc107;">
+                    <p><strong>🎮 DEMO MODE</strong></p>
+                    <p><strong>Test Card:</strong> Use <code>4242 4242 4242 4242</code></p>
+                    <p><small>Any future expiry date, any CVC, any ZIP</small></p>
+                    <p><small style="color: #856404;">⚠️ Payments are simulated - no real charges will be made</small></p>
+                </div>
+                <div id="card-element" style="padding: 12px; border: 1px solid #ccc; border-radius: 6px; margin: 15px 0;">
+                    <!-- Stripe Elements will create form elements here -->
+                </div>
+                <div id="card-errors" role="alert" style="color: #dc3545; font-size: 14px; margin-top: 10px;"></div>
+                {% else %}
+                <div class="stripe-info">
+                    <p><strong>Test Card:</strong> Use <code>4242 4242 4242 4242</code></p>
+                    <p><small>Any future expiry date, any CVC, any ZIP</small></p>
+                </div>
+                <div id="card-element" style="padding: 12px; border: 1px solid #ccc; border-radius: 6px; margin: 15px 0;">
+                    <!-- Stripe Elements will create form elements here -->
+                </div>
+                <div id="card-errors" role="alert" style="color: #dc3545; font-size: 14px; margin-top: 10px;"></div>
+                {% endif %}
+            </div>
+
+            <button type="submit" class="button checkout-btn" id="submitBtn">
+                Place Order
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" 
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" 
+      crossorigin=""/>
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+        crossorigin=""></script>
+<script>
+    // Verify Leaflet loaded
+    if (typeof L === 'undefined') {
+        console.error('Leaflet library failed to load!');
+    } else {
+        console.log('Leaflet loaded successfully, version:', L.version);
+    }
+</script>
+<!-- Stripe JS -->
+<script src="https://js.stripe.com/v3/"></script>
+
+<style>
+/* Fix for Leaflet map tiles */
+#map {
+    height: 300px !important;
+    width: 100% !important;
+    min-height: 300px;
+    background-color: #f0f0f0;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    overflow: hidden;
+    position: relative;
+    z-index: 1;
+    display: block !important;
+    visibility: visible !important;
+}
+
+.leaflet-container {
+    height: 100% !important;
+    width: 100% !important;
+    z-index: 1;
+    font-family: inherit;
+    background-color: #f0f0f0;
+}
+
+.leaflet-tile-container {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.leaflet-tile-container img {
+    max-width: none !important;
+    max-height: none !important;
+    width: 256px !important;
+    height: 256px !important;
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+.leaflet-control-container {
+    z-index: 2;
+}
+
+.leaflet-popup-content-wrapper {
+    border-radius: 8px;
+}
+
+/* Ensure map tiles load properly */
+.leaflet-tile {
+    visibility: visible !important;
+    opacity: 1 !important;
+    display: block !important;
+    pointer-events: auto !important;
+}
+
+.leaflet-tile-loaded {
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+/* Fix for tile loading */
+.leaflet-tile-pane {
+    z-index: 2;
+}
+
+.leaflet-overlay-pane {
+    z-index: 4;
+}
+
+.leaflet-marker-pane {
+    z-index: 5;
+}
+</style>
+
+<script>
+    // Initialize Stripe (works in both real and demo mode)
+    let stripe = null;
+    let elements = null;
+    let cardElement = null;
+    
+    {% if stripe_demo_mode %}
+    // DEMO MODE: Skip Stripe.js, use simple form inputs
+    console.log('🎮 Stripe DEMO MODE - payments will be simulated (no real charges)');
+    // Create mock card element container
+    const cardElementDiv = document.getElementById('card-element');
+    if (cardElementDiv) {
+        cardElementDiv.innerHTML = `
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <input type="text" id="demo-card-number" placeholder="Card Number (e.g., 4242 4242 4242 4242)" 
+                       style="padding: 10px; border: 1px solid #ccc; border-radius: 6px;" 
+                       value="4242 4242 4242 4242">
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="demo-card-expiry" placeholder="MM/YY" 
+                           style="flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 6px;" 
+                           value="12/25">
+                    <input type="text" id="demo-card-cvc" placeholder="CVC" 
+                           style="flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 6px;" 
+                           value="123">
+                </div>
+            </div>
+        `;
+    }
+    {% elif stripe_enabled and stripe_publishable_key %}
+    try {
+        const publishableKey = '{{ stripe_publishable_key }}';
+        stripe = Stripe(publishableKey);
+        elements = stripe.elements();
+        console.log('✅ Stripe enabled with real keys');
+    } catch(error) {
+        console.error('Stripe initialization error:', error);
+    }
+    {% else %}
+    console.log('Stripe is not configured. Card payments disabled.');
+    {% endif %}
+
+    // Initialize map
+    let map = null;
+    let marker = null;
+    let currentLocation = null;
+    let mapInitialized = false;
+
+    function initMap(centerLat = null, centerLng = null, zoom = 13) {
+        const mapContainer = document.getElementById('map');
+        if (!mapContainer) {
+            console.error('Map container not found');
+            return;
+        }
+        
+        // Wait a bit to ensure container is visible and has dimensions
+        setTimeout(function() {
+            // Default location (GSU Campus area) - only use if no center provided
+            const defaultLat = centerLat || 33.7531;
+            const defaultLng = centerLng || -84.3853;
+            
+            // Check if map already exists
+            if (map) {
+                try {
+                    map.remove();
+                } catch(e) {
+                    console.log('Map removal error:', e);
+                }
+            }
+            
+            // Ensure container has dimensions
+            if (mapContainer.offsetHeight === 0 || mapContainer.offsetWidth === 0) {
+                console.warn('Map container has no dimensions, retrying...');
+                setTimeout(function() { initMap(centerLat, centerLng, zoom); }, 300);
+                return;
+            }
+            
+            try {
+                map = L.map('map', {
+                    center: [defaultLat, defaultLng],
+                    zoom: zoom,
+                    zoomControl: true,
+                    preferCanvas: false,
+                    worldCopyJump: false
+                });
+                
+                // Use OpenStreetMap tiles with proper configuration
+                const tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                    maxZoom: 19,
+                    subdomains: ['a', 'b', 'c'],
+                    tileSize: 256,
+                    zoomOffset: 0,
+                    crossOrigin: true
+                });
+                
+                // Add tile layer
+                tileLayer.addTo(map);
+                
+                // Monitor tile loading
+                let tilesLoaded = 0;
+                let tilesError = 0;
+                
+                tileLayer.on('tileload', function() {
+                    tilesLoaded++;
+                    if (tilesLoaded === 1) {
+                        console.log('Map tiles loading successfully');
+                    }
+                });
+                
+                tileLayer.on('tileerror', function(error, tile) {
+                    tilesError++;
+                    console.warn('Tile load error:', error, tile);
+                    // If too many errors, try alternative provider
+                    if (tilesError > 3 && tilesLoaded === 0) {
+                        console.log('Too many tile errors, trying alternative provider...');
+                        map.removeLayer(tileLayer);
+                        const altTileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+                            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+                            maxZoom: 19,
+                            subdomains: 'abcd'
+                        });
+                        altTileLayer.addTo(map);
+                    }
+                });
+                
+                // Force tile refresh and ensure visibility
+                setTimeout(function() {
+                    if (map) {
+                        map.invalidateSize();
+                        // Force a tile refresh
+                        map.eachLayer(function(layer) {
+                            if (layer instanceof L.TileLayer) {
+                                layer.redraw();
+                            }
+                        });
+                        // Ensure map container is visible
+                        const mapEl = document.getElementById('map');
+                        if (mapEl) {
+                            mapEl.style.display = 'block';
+                            mapEl.style.visibility = 'visible';
+                        }
+                    }
+                }, 200);
+                
+                // Invalidate size multiple times to ensure rendering
+                setTimeout(function() {
+                    if (map) {
+                        map.invalidateSize();
+                    }
+                }, 500);
+                
+                setTimeout(function() {
+                    if (map) {
+                        map.invalidateSize();
+                        // Force tile reload
+                        map.eachLayer(function(layer) {
+                            if (layer instanceof L.TileLayer) {
+                                layer.redraw();
+                            }
+                        });
+                    }
+                }, 1000);
+                
+                setTimeout(function() {
+                    if (map) {
+                        map.invalidateSize();
+                    }
+                }, 2000);
+
+                // Add marker
+                marker = L.marker([defaultLat, defaultLng], {draggable: true}).addTo(map);
+                
+                marker.on('dragend', function(e) {
+                    const position = marker.getLatLng();
+                    updateLocation(position.lat, position.lng);
+                });
+
+                map.on('click', function(e) {
+                    marker.setLatLng(e.latlng);
+                    updateLocation(e.latlng.lat, e.latlng.lng);
+                });
+                
+                // Update location on initial load
+                updateLocation(defaultLat, defaultLng);
+                
+                mapInitialized = true;
+                console.log('Map initialized successfully at:', defaultLat, defaultLng);
+                
+                // Final check to ensure tiles are visible
+                setTimeout(function() {
+                    if (map) {
+                        const bounds = map.getBounds();
+                        console.log('Map bounds:', bounds);
+                        // Force one more refresh
+                        map.invalidateSize();
+                        map.eachLayer(function(layer) {
+                            if (layer instanceof L.TileLayer) {
+                                layer.redraw();
+                            }
+                        });
+                    }
+                }, 1500);
+            } catch(error) {
+                console.error('Error initializing map:', error);
+            }
+        }, 300);
+    }
+
+    function updateLocation(lat, lng) {
+        document.getElementById('delivery_lat').value = lat;
+        document.getElementById('delivery_lng').value = lng;
+        
+        // Reverse geocode to get address
+        fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
+            .then(response => response.json())
+            .then(data => {
+                const address = data.display_name || `${lat}, ${lng}`;
+                document.getElementById('delivery_address').value = address;
+            })
+            .catch(() => {
+                document.getElementById('delivery_address').value = `${lat}, ${lng}`;
+            });
+    }
+
+    // Function to get and set user location
+    function getUserLocation(autoRequest = false) {
+        if (!navigator.geolocation) {
+            if (!autoRequest) {
+                alert('Geolocation is not supported by your browser. Please use the address search instead.');
+            }
+            return;
+        }
+        
+        const btn = document.getElementById('getLocationBtn');
+        if (btn && !autoRequest) {
+            btn.textContent = '📍 Getting location...';
+            btn.disabled = true;
+        }
+        
+        // Request location with options for better accuracy
+        const options = {
+            enableHighAccuracy: true,
+            timeout: 15000,
+            maximumAge: 0
+        };
+        
+        navigator.geolocation.getCurrentPosition(
+            function(position) {
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
+                
+                console.log('Location obtained:', lat, lng);
+                currentLocation = { lat: lat, lng: lng };
+                
+                // Ensure map is initialized
+                if (!mapInitialized || !map) {
+                    initMap(lat, lng, 15);
+                    setTimeout(function() {
+                        if (map) {
+                            map.setView([lat, lng], 15);
+                            if (marker) {
+                                marker.setLatLng([lat, lng]);
+                            } else {
+                                marker = L.marker([lat, lng], {draggable: true}).addTo(map);
+                            }
+                            updateLocation(lat, lng);
+                        }
+                    }, 800);
+                } else {
+                    map.setView([lat, lng], 15);
+                    if (marker) {
+                        marker.setLatLng([lat, lng]);
+                    } else {
+                        marker = L.marker([lat, lng], {draggable: true}).addTo(map);
+                    }
+                    updateLocation(lat, lng);
+                }
+                
+                if (btn) {
+                    btn.textContent = '📍 Use My Location';
+                    btn.disabled = false;
+                }
+            },
+            function(error) {
+                let errorMessage = 'Could not get your location. ';
+                
+                switch(error.code) {
+                    case error.PERMISSION_DENIED:
+                        errorMessage += 'Location permission was denied. Please allow location access in your browser settings or use the address search.';
+                        break;
+                    case error.POSITION_UNAVAILABLE:
+                        errorMessage += 'Location information is unavailable. Please use the address search.';
+                        break;
+                    case error.TIMEOUT:
+                        errorMessage += 'Location request timed out. Please try again or use the address search.';
+                        break;
+                    default:
+                        errorMessage += 'An unknown error occurred. Please use the address search.';
+                        break;
+                }
+                
+                if (!autoRequest) {
+                    alert(errorMessage);
+                }
+                console.error('Geolocation error:', error);
+                
+                // Initialize map with default location if auto-request failed
+                if (autoRequest && !mapInitialized) {
+                    initMap();
+                }
+                
+                if (btn) {
+                    btn.textContent = '📍 Use My Location';
+                    btn.disabled = false;
+                }
+            },
+            options
+        );
+    }
+    
+    // Get user location button click handler
+    document.getElementById('getLocationBtn').addEventListener('click', function() {
+        getUserLocation(false);
+    });
+    
+    // Try to automatically get user location on page load
+    if (navigator.geolocation) {
+        if (navigator.permissions) {
+            navigator.permissions.query({name: 'geolocation'}).then(function(result) {
+                console.log('Geolocation permission status:', result.state);
+                if (result.state === 'granted') {
+                    // Permission already granted, auto-get location
+                    console.log('Location permission already granted, getting location...');
+                    getUserLocation(true);
+                } else if (result.state === 'prompt') {
+                    // Try to request location automatically
+                    console.log('Requesting location permission...');
+                    getUserLocation(true);
+                }
+            }).catch(function(err) {
+                console.log('Permission query not supported, trying to get location anyway:', err);
+                // Try anyway - browser will prompt
+                getUserLocation(true);
+            });
+        } else {
+            // Permissions API not supported, try to get location anyway
+            console.log('Permissions API not supported, trying to get location...');
+            getUserLocation(true);
+        }
+    }
+
+    // Address search
+    let searchTimeout;
+    document.getElementById('addressSearch').addEventListener('input', function(e) {
+        clearTimeout(searchTimeout);
+        const query = e.target.value;
+        
+        if (query.length < 3) return;
+        
+        searchTimeout = setTimeout(() => {
+            fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.length > 0) {
+                        const result = data[0];
+                        const lat = parseFloat(result.lat);
+                        const lng = parseFloat(result.lon);
+                        map.setView([lat, lng], 15);
+                        marker.setLatLng([lat, lng]);
+                        updateLocation(lat, lng);
+                    }
+                });
+        }, 500);
+    });
+
+    // Payment method toggle
+    document.querySelectorAll('input[name="payment_method"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            const stripeForm = document.getElementById('stripePaymentForm');
+            if (!stripeForm) return;
+            
+            if (this.value === 'stripe') {
+                stripeForm.style.display = 'block';
+                {% if not stripe_demo_mode %}
+                if (stripe && elements && !cardElement) {
+                    cardElement = elements.create('card');
+                    cardElement.mount('#card-element');
+                    
+                    cardElement.on('change', function(event) {
+                        const displayError = document.getElementById('card-errors');
+                        if (event.error) {
+                            displayError.textContent = event.error.message;
+                        } else {
+                            displayError.textContent = '';
+                        }
+                    });
+                }
+                {% endif %}
+            } else {
+                stripeForm.style.display = 'none';
+            }
+        });
+    });
+
+    // Form submission
+    document.getElementById('checkoutForm').addEventListener('submit', function(e) {
+        const paymentMethod = document.querySelector('input[name="payment_method"]:checked').value;
+        
+        if (paymentMethod === 'stripe') {
+            {% if stripe_demo_mode %}
+            // DEMO MODE: Skip Stripe token creation, just submit with a demo token
+            e.preventDefault();
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Processing (Demo)...';
+            
+            // Simulate processing delay
+            setTimeout(function() {
+                // Add demo token to form
+                const tokenInput = document.createElement('input');
+                tokenInput.type = 'hidden';
+                tokenInput.name = 'stripeToken';
+                tokenInput.value = 'demo_token_' + Date.now();
+                document.getElementById('checkoutForm').appendChild(tokenInput);
+                
+                // Submit form
+                document.getElementById('checkoutForm').submit();
+            }, 1000);
+            {% elif stripe and cardElement %}
+            // Real Stripe mode
+            e.preventDefault();
+            
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Processing...';
+            
+            stripe.createToken(cardElement).then(function(result) {
+                if (result.error) {
+                    const errorDiv = document.getElementById('card-errors');
+                    if (errorDiv) {
+                        errorDiv.textContent = result.error.message;
+                    }
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Place Order';
+                } else {
+                    // Add token to form
+                    const tokenInput = document.createElement('input');
+                    tokenInput.type = 'hidden';
+                    tokenInput.name = 'stripeToken';
+                    tokenInput.value = result.token.id;
+                    document.getElementById('checkoutForm').appendChild(tokenInput);
+                    
+                    // Submit form
+                    document.getElementById('checkoutForm').submit();
+                }
+            });
+            {% else %}
+            alert('Stripe is not properly initialized. Please use cash on delivery.');
+            e.preventDefault();
+            {% endif %}
+        }
+        // If cash, form submits normally
+    });
+
+    // Wait for Leaflet to be fully loaded
+    function waitForLeaflet(callback, maxAttempts = 10) {
+        let attempts = 0;
+        const checkLeaflet = setInterval(function() {
+            attempts++;
+            if (typeof L !== 'undefined' && L.map) {
+                clearInterval(checkLeaflet);
+                console.log('Leaflet is ready');
+                callback();
+            } else if (attempts >= maxAttempts) {
+                clearInterval(checkLeaflet);
+                console.error('Leaflet failed to load after', maxAttempts, 'attempts');
+                callback(); // Try anyway
+            }
+        }, 100);
+    }
+    
+    // Initialize map on page load (with delay to allow location to be obtained first)
+    waitForLeaflet(function() {
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() {
+                // Wait a bit for location request, then initialize map if location not obtained
+                setTimeout(function() {
+                    if (!mapInitialized) {
+                        initMap();
+                    }
+                }, 1500);
+            });
+        } else {
+            // DOM already loaded - wait for location request
+            setTimeout(function() {
+                if (!mapInitialized) {
+                    initMap();
+                }
+            }, 1500);
+        }
+        
+        // Also try initializing after a longer delay as fallback
+        setTimeout(function() {
+            if (!mapInitialized || !map || !map.getContainer() || map.getContainer().offsetHeight === 0) {
+                console.log('Retrying map initialization...');
+                if (!mapInitialized) {
+                    initMap();
+                } else if (map) {
+                    map.invalidateSize();
+                    // Force tile reload
+                    map.eachLayer(function(layer) {
+                        if (layer instanceof L.TileLayer) {
+                            layer.redraw();
+                        }
+                    });
+                }
+            }
+        }, 3000);
+    });
+
+    // Tip calculation (subtotal already includes tax)
+    const subtotal = {{ subtotal }};
+    const taxAmount = {{ tax_amount }};
+    const baseTotal = {{ total }}; // subtotal + tax
+    let selectedTipPercentage = 0;
+    let customTipAmount = 0;
+
+    // Tip button handlers
+    document.addEventListener('DOMContentLoaded', function() {
+        // Tip button handlers
+        document.querySelectorAll('.tip-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                // Remove active class from all buttons
+                document.querySelectorAll('.tip-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                
+                selectedTipPercentage = parseFloat(this.dataset.tip) || 0;
+                customTipAmount = 0;
+                const customTipInput = document.getElementById('custom_tip');
+                if (customTipInput) customTipInput.value = '';
+                updateTip();
+            });
+        });
+        
+        // Custom tip input handler
+        const customTipInput = document.getElementById('custom_tip');
+        if (customTipInput) {
+            customTipInput.addEventListener('input', function() {
+                const value = parseFloat(this.value) || 0;
+                if (value > 0) {
+                    customTipAmount = value;
+                    selectedTipPercentage = 0;
+                    document.querySelectorAll('.tip-btn').forEach(b => b.classList.remove('active'));
+                    updateTip();
+                } else {
+                    customTipAmount = 0;
+                    updateTip();
+                }
+            });
+        }
+        
+        function updateTip() {
+            let tipValue = 0;
+            if (customTipAmount > 0) {
+                tipValue = customTipAmount;
+            } else if (selectedTipPercentage > 0) {
+                // Tip is calculated on subtotal (before tax)
+                tipValue = subtotal * (selectedTipPercentage / 100);
+            }
+            
+            // Final total = subtotal + tax + tip
+            const finalTotal = baseTotal + tipValue;
+            
+            // Update display
+            const tipLine = document.getElementById('tip-line');
+            const tipAmount = document.getElementById('tip-amount');
+            const finalTotalEl = document.getElementById('final-total');
+            
+            if (tipValue > 0 && tipLine && tipAmount) {
+                tipLine.style.display = 'flex';
+                tipAmount.textContent = '$' + tipValue.toFixed(2);
+            } else if (tipLine) {
+                tipLine.style.display = 'none';
+            }
+            
+            if (finalTotalEl) {
+                finalTotalEl.textContent = '$' + finalTotal.toFixed(2);
+            }
+            
+            // Update hidden fields
+            const tipPercentageInput = document.getElementById('tip_percentage');
+            const tipAmountInput = document.getElementById('tip_amount');
+            if (tipPercentageInput) tipPercentageInput.value = selectedTipPercentage;
+            if (tipAmountInput) tipAmountInput.value = tipValue.toFixed(2);
+        }
+    });
+</script>
+
+<style>
+.checkout-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.checkout-section {
+    background: white;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    margin-bottom: 20px;
+}
+
+.checkout-section h2 {
+    color: #1a1a1a;
+    font-weight: 600;
+    margin-bottom: 20px;
+    font-size: 20px;
+}
+
+.order-items {
+    margin-bottom: 15px;
+}
+
+.order-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid #eee;
+}
+
+.order-item:last-child {
+    border-bottom: none;
+}
+
+.item-name {
+    flex: 1;
+}
+
+.item-qty {
+    color: #666;
+    margin: 0 10px;
+}
+
+.item-price {
+    font-weight: 500;
+}
+
+.order-total {
+    padding-top: 15px;
+    border-top: 2px solid #d6001c;
+    font-size: 18px;
+    color: #d6001c;
+}
+
+.total-line {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-size: 15px;
+}
+
+.final-total {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 2px solid #e0e0e0;
+    font-size: 20px;
+    color: #d6001c;
+}
+
+.tip-options {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+
+.tip-btn {
+    flex: 1;
+    min-width: 100px;
+    padding: 10px 12px;
+    background: #f0f0f0;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.tip-btn:hover {
+    background: #fff5f5;
+    border-color: #d6001c;
+    color: #d6001c;
+}
+
+.tip-btn.active {
+    background: #d6001c;
+    color: #fff;
+    border-color: #d6001c;
+}
+
+.location-controls {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.location-btn {
+    white-space: nowrap;
+    padding: 10px 15px;
+}
+
+.address-search {
+    flex: 1;
+    padding: 10px 12px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.section-hint {
+    font-size: 13px;
+    color: #666;
+    margin-bottom: 15px;
+}
+
+.info-text {
+    font-size: 13px;
+    color: #666;
+    margin-bottom: 15px;
+    padding: 10px;
+    background: #f0f7ff;
+    border-radius: 6px;
+}
+
+.payment-options {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.payment-option {
+    display: flex;
+    align-items: center;
+    padding: 15px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.payment-option:hover {
+    border-color: #d6001c;
+    background: #fff5f5;
+}
+
+.payment-option input[type="radio"] {
+    margin-right: 15px;
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+}
+
+.payment-option input[type="radio"]:checked + .payment-label {
+    color: #d6001c;
+}
+
+.payment-label {
+    display: flex;
+    flex-direction: column;
+    cursor: pointer;
+}
+
+.payment-label strong {
+    font-size: 16px;
+    margin-bottom: 4px;
+}
+
+.payment-label small {
+    color: #666;
+    font-size: 13px;
+}
+
+.stripe-info {
+    background: #f8f9fa;
+    padding: 12px;
+    border-radius: 6px;
+    margin-bottom: 15px;
+    font-size: 13px;
+}
+
+.stripe-info code {
+    background: #fff;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: monospace;
+}
+
+.checkout-btn {
+    width: 100%;
+    padding: 15px;
+    font-size: 16px;
+    font-weight: 600;
+    margin-top: 20px;
+    background: #d6001c;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.checkout-btn:hover {
+    background: #b8001a;
+}
+
+.checkout-btn:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+}
+
+.total-line {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-size: 15px;
+}
+
+.final-total {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 2px solid #e0e0e0;
+    font-size: 20px;
+    color: #d6001c;
+}
+
+.tip-options {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+
+.tip-btn {
+    flex: 1;
+    min-width: 100px;
+    padding: 10px 12px;
+    background: #f0f0f0;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.tip-btn:hover {
+    background: #fff5f5;
+    border-color: #d6001c;
+    color: #d6001c;
+}
+
+.tip-btn.active {
+    background: #d6001c;
+    color: #fff;
+    border-color: #d6001c;
+}
+
+@media (max-width: 768px) {
+    .checkout-container {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+
+{% endblock %}

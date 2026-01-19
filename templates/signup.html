@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="auth-wrapper">
+    <div class="auth-card">
+        <h1 class="auth-title">Create your Item7 account</h1>
+        <p class="auth-subtitle">
+            Set up access so you can schedule staff, manage profiles, and keep service running smoothly.
+        </p>
+
+        <form action="{{ url_for('signup') }}" method="POST">
+            <label for="email">Work email</label>
+            <input id="email" type="email" name="email" autocomplete="email" placeholder="you@item7.com" required>
+
+            <label for="password">Password</label>
+            <input id="password" type="password" name="password" autocomplete="new-password" placeholder="Choose a secure password" required>
+
+            <div class="auth-grid">
+                <div>
+                    <label for="first">First name</label>
+                    <input id="first" type="text" name="first" required>
+                </div>
+                <div>
+                    <label for="last">Last name</label>
+                    <input id="last" type="text" name="last" required>
+                </div>
+            </div>
+
+            <label for="phone">Mobile number</label>
+            <input id="phone" type="text" name="phone" placeholder="(555) 123-4567" required>
+
+            <label for="address">Address</label>
+            <input id="address" type="text" name="address" placeholder="123 Market Street" required>
+
+            <div class="auth-grid">
+                <div>
+                    <label for="dob">Date of birth</label>
+                    <input id="dob" type="text" name="dob" placeholder="MM/DD/YYYY" required>
+                </div>
+                <div>
+                    <label for="sex">Sex</label>
+                    <select id="sex" name="sex" required>
+                        <option value="">Select...</option>
+                        <option value="M">Male</option>
+                        <option value="F">Female</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="auth-role-group">
+                <p class="auth-role-label">Is this an Item7 staff account?</p>
+                <label class="auth-role-option">
+                    <input type="radio" name="account_type" value="staff" id="account_staff" onchange="toggleStaffCode()">
+                    Yes, register me as staff
+                </label>
+                <label class="auth-role-option">
+                    <input type="radio" name="account_type" value="customer" id="account_customer" onchange="toggleStaffCode()" checked>
+                    No, I'm a customer/guest
+                </label>
+            </div>
+
+            <div id="staff-code-field" style="display: none;">
+                <label for="staff_code">Staff Registration Code <span style="color: #dc3545;">*</span></label>
+                <input id="staff_code" type="text" name="staff_code" placeholder="Enter staff registration code" 
+                       style="border: 2px solid #d6001c;">
+                <p style="font-size: 12px; color: #666; margin-top: 5px;">
+                    You must have a valid staff registration code to register as staff.
+                </p>
+            </div>
+
+            <script>
+                function toggleStaffCode() {
+                    const staffRadio = document.getElementById('account_staff');
+                    const staffCodeField = document.getElementById('staff-code-field');
+                    if (staffRadio && staffCodeField) {
+                        if (staffRadio.checked) {
+                            staffCodeField.style.display = 'block';
+                            document.getElementById('staff_code').required = true;
+                        } else {
+                            staffCodeField.style.display = 'none';
+                            document.getElementById('staff_code').required = false;
+                        }
+                    }
+                }
+                // Check on page load if staff is selected
+                window.addEventListener('DOMContentLoaded', function() {
+                    toggleStaffCode();
+                    // Add event listeners
+                    const staffRadio = document.getElementById('account_staff');
+                    const customerRadio = document.getElementById('account_customer');
+                    if (staffRadio) staffRadio.addEventListener('change', toggleStaffCode);
+                    if (customerRadio) customerRadio.addEventListener('change', toggleStaffCode);
+                });
+            </script>
+
+            <div class="form-actions">
+                <button type="submit" class="button">Create account</button>
+            </div>
+        </form>
+
+        <p class="form-footer-text">
+            Already have access? <a href="{{ url_for('login') }}">Login here</a>
+        </p>
+    </div>
+
+    <div class="auth-side-card">
+        <h2>Why Item7?</h2>
+        <ul>
+            <li>Centralized staff scheduling</li>
+            <li>Live availability tracking</li>
+            <li>Safe order workflows</li>
+        </ul>
+        <p class="auth-note">Accounts require approval. Contact your lead if you need help signing up.</p>
+    </div>
+</div>
+
+{% endblock %}
+

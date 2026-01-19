@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="auth-wrapper">
+    <div class="auth-card">
+        <h1 class="auth-title">Welcome back</h1>
+        <p class="auth-subtitle">
+            Sign in to manage schedules, staff, and orders for {{ truck.name }}.
+        </p>
+
+        {% if error %}
+            <div class="flash flash-error">
+                {{ error }}
+            </div>
+        {% endif %}
+
+        <form action="{{ url_for('login') }}" method="POST">
+            <label for="email">Email address</label>
+            <input id="email" type="email" name="email" autocomplete="email" placeholder="you@email.com" value="{{ prefill_email }}" required>
+
+            <label for="password">Password</label>
+            <input id="password" type="password" name="password" autocomplete="current-password" placeholder="Enter your password" required>
+
+            <div class="auth-role-group">
+                <p class="auth-role-label">Who are you logging in as?</p>
+                <label class="auth-role-option">
+                    <input type="radio" name="account_type" value="staff" checked>
+                    Item7 Staff Member
+                </label>
+                <label class="auth-role-option">
+                    <input type="radio" name="account_type" value="customer">
+                    Customer / Guest
+                </label>
+            </div>
+
+            <div class="form-actions auth-actions">
+                <button type="submit" class="button">Login</button>
+                <a href="#" class="link-muted">Forgot password?</a>
+            </div>
+        </form>
+
+        <p class="form-footer-text">
+            New to {{ truck.name }}? <a href="{{ url_for('signup') }}">Create an account</a>
+        </p>
+    </div>
+
+    <div class="auth-side-card">
+        <h2>Manage faster</h2>
+        <ul>
+            <li>Real-time staff scheduling</li>
+            <li>Immediate order insights</li>
+            <li>Secure profile management</li>
+        </ul>
+        <p class="auth-note">Need an account? Request access from your Item7 admin.</p>
+    </div>
+</div>
+
+{% endblock %}

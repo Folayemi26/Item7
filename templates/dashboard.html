@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-header">
+    <h1 class="page-title">Welcome, {{ user.first }} {{ user.last }}!</h1>
+    <span class="pill-badge">Signed in as {{ user.email }}</span>
+</div>
+
+<div class="dashboard-grid">
+    <section class="card">
+        <h2>Your Profile</h2>
+        <p class="section-subtitle">Details used for staff communication and schedule assignments.</p>
+        <table>
+            <tr>
+                <td><strong>Email</strong></td>
+                <td>{{ user.email }}</td>
+            </tr>
+            <tr>
+                <td><strong>Name</strong></td>
+                <td>{{ user.first }} {{ user.last }}</td>
+            </tr>
+            <tr>
+                <td><strong>Phone</strong></td>
+                <td>{{ user.phone }}</td>
+            </tr>
+            <tr>
+                <td><strong>Address</strong></td>
+                <td>{{ user.address }}</td>
+            </tr>
+            <tr>
+                <td><strong>Date of Birth</strong></td>
+                <td>{{ user.dob }}</td>
+            </tr>
+            <tr>
+                <td><strong>Sex</strong></td>
+                <td>{{ user.sex }}</td>
+            </tr>
+        </table>
+
+        <div class="form-actions">
+            <a href="{{ url_for('update_profile') }}" class="button">Edit Profile</a>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>Your Upcoming Schedules</h2>
+        <p class="section-subtitle">Shifts where you are assigned as staff.</p>
+
+        {% if schedules %}
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Time</th>
+                            <th>Work Time</th>
+                            <th>Manager</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for schedule in schedules %}
+                        <tr>
+                            <td>{{ schedule.date }}</td>
+                            <td>{{ schedule.time }}</td>
+                            <td>{{ schedule.work_time }}</td>
+                            <td>{{ schedule.manager }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p>You have no scheduled work times yet.</p>
+        {% endif %}
+
+        <div class="form-actions">
+            <a href="{{ url_for('book_schedule_form') }}" class="button">Book New Schedule</a>
+            <a href="{{ url_for('schedules_page') }}" class="button secondary">View All Schedules</a>
+        </div>
+    </section>
+</div>
+
+{% endblock %}
+

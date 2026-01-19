@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-header">
+    <h1 class="page-title">Your Profile</h1>
+    <p class="page-subtitle">Keep your contact details up to date for scheduling and internal communication.</p>
+</div>
+
+<div class="form-card">
+    <form action="{{ url_for('update_profile') }}" method="POST">
+        <label>Email (cannot be changed)</label><br>
+        <input type="email" name="email" value="{{ user.email }}" disabled><br>
+
+        <label for="first">First Name</label><br>
+        <input id="first" type="text" name="first" value="{{ user.first }}" required><br>
+
+        <label for="last">Last Name</label><br>
+        <input id="last" type="text" name="last" value="{{ user.last }}" required><br>
+
+        <label for="phone">Mobile Number</label><br>
+        <input id="phone" type="text" name="phone" value="{{ user.phone }}" required><br>
+
+        <label for="address">Address</label><br>
+        <input id="address" type="text" name="address" value="{{ user.address }}" required><br>
+
+        <label for="dob">Date of Birth</label><br>
+        <input id="dob" type="text" name="dob" value="{{ user.dob }}" required><br>
+
+        <label for="sex">Sex</label><br>
+        <select id="sex" name="sex" required>
+            <option value="M" {% if user.sex == 'M' %}selected{% endif %}>Male</option>
+            <option value="F" {% if user.sex == 'F' %}selected{% endif %}>Female</option>
+            <option value="Other" {% if user.sex == 'Other' %}selected{% endif %}>Other</option>
+        </select><br>
+
+        <div class="form-actions">
+            <input type="submit" value="Update Profile" class="button">
+            <a href="{{ url_for('dashboard') }}" class="button secondary" style="text-decoration: none;">Cancel</a>
+        </div>
+    </form>
+</div>
+
+{% endblock %}
+

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ title or "CS120 Food Truck" }}</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/favicon.svg') }}">
+</head>
+<body>
+
+{% if not hide_top_nav %}
+<nav>
+    <div class="brand">
+        <a href="{{ url_for('home') }}" class="brand-link">
+            <span class="brand-logo-wrap">
+                <img src="{{ url_for('static', filename='images/logo.svg') }}" alt="CS120 Food Truck logo" class="brand-logo" onerror="this.style.display='none'">
+            </span>
+            <span class="brand-text">{{ truck.name or "Item7 Food Truck" }}</span>
+        </a>
+    </div>
+    <button class="mobile-menu-toggle" aria-label="Toggle menu" onclick="toggleMobileMenu()">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+    <div class="mobile-menu-backdrop" onclick="toggleMobileMenu()"></div>
+    <div class="nav-links">
+        <a href="{{ url_for('home') }}">Home</a>
+        {% if not is_staff and not is_admin %}
+        <a href="{{ url_for('menu_page') }}">Menu</a>
+        <a href="{{ url_for('cart_page') }}">
+            Cart{% if cart_count %} ({{ cart_count }}){% endif %}
+        </a>
+        {% endif %}
+        {% if user_email %}
+            <a href="{{ url_for('dashboard') }}">Dashboard</a>
+            {% if is_staff or is_admin %}
+            <a href="{{ url_for('staff_dashboard') }}">Staff Portal</a>
+            {% endif %}
+        {% endif %}
+        {% if is_admin %}
+            <a href="{{ url_for('admin_dashboard') }}">Admin</a>
+            <a href="{{ url_for('staff_page') }}">Staff</a>
+            <a href="{{ url_for('schedules_page') }}">Schedules</a>
+            <a href="{{ url_for('admin_orders_page') }}">Orders</a>
+        {% endif %}
+        {% if user_email or is_admin %}
+            <a href="{{ url_for('logout') }}">Logout</a>
+        {% else %}
+            <a href="{{ url_for('login') }}">Login</a>
+            <a href="{{ url_for('signup') }}">Sign Up</a>
+        {% endif %}
+    </div>
+</nav>
+{% endif %}
+
+<main>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="flash-container">
+                {% for category, message in messages %}
+                    <div class="flash {% if category == 'error' %}flash-error{% elif category == 'success' %}flash-success{% else %}flash-info{% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+</main>
+
+<script>
+function toggleMobileMenu() {
+    const navLinks = document.querySelector('.nav-links');
+    const backdrop = document.querySelector('.mobile-menu-backdrop');
+    const body = document.body;
+    
+    navLinks.classList.toggle('active');
+    backdrop.classList.toggle('active');
+    body.classList.toggle('menu-open');
+}
+
+// Close menu when clicking on a link
+document.addEventListener('DOMContentLoaded', function() {
+    const navLinks = document.querySelectorAll('.nav-links a');
+    navLinks.forEach(link => {
+        link.addEventListener('click', function() {
+            if (window.innerWidth <= 768) {
+                toggleMobileMenu();
+            }
+        });
+    });
+});
+</script>
+
+</body>
+</html>
