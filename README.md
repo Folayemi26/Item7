@@ -33,7 +33,7 @@ Flask-based web application for the CS120 "Item7 Food Truck". The site combines 
 
 ### Requirements
 
-- Python 3.10+
+- Python 3.152
 - Pipenv/venv recommended
 
 ```bash
