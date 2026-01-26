@@ -161,4 +161,3 @@ All routes share consistent error handling and JSON structures.
 MIT License. Built for CS120 coursework, inspired by the KFC Shift Manager experience. Contributions welcome via PR.
 
 ---
-# FoodTruckItem7
