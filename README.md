@@ -155,9 +155,3 @@ All routes share consistent error handling and JSON structures.
 3. Set `ADMIN_EMAILS` and log in as that email to reveal admin nav links.
 
 ---
-
-## License & Credits
-
-MIT License. Built for CS120 coursework, inspired by the KFC Shift Manager experience. Contributions welcome via PR.
-
----
