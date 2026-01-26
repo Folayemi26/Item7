@@ -73,7 +73,7 @@ app.py                  # Flask routes and auth
 foodtruck.py            # CSV helper class & business rules
 static/style.css        # Shared UI styling + staff portal design
 templates/              # Jinja templates
-  staff_layout.html     # Base layout for staff pages
+  staff_layout.html     
   staff_dashboard.html
   staff_management.html
   staff_schedule.html
@@ -161,3 +161,10 @@ All routes share consistent error handling and JSON structures.
 MIT License. Built for CS120 coursework, inspired by the KFC Shift Manager experience. Contributions welcome via PR.
 
 ---
+
+## License & Credits
+
+MIT License. Built for CS120 coursework, inspired by the KFC Shift Manager experience. Contributions welcome via PR.
+
+---
+
