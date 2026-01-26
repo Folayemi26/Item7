@@ -30,7 +30,6 @@ Flask-based web application for the CS120 "Item7 Food Truck". The site combines 
 
 ---
 
-## Quick start
 
 ### Requirements
 
