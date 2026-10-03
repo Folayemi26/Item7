@@ -19,6 +19,8 @@ A Flask web app for a campus food truck at Grambling State University. Customers
 
 Card payments run in Stripe demo mode. Use test card `4242 4242 4242 4242` with any future expiry date and any CVC. No real charges are made.
 
+Removing staff in Staff Management requires a senior manager code, available on request.
+
 The live demo's data resets on every redeploy, so feel free to place orders and claim shifts.
 
 ---
