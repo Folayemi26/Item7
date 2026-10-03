@@ -24,9 +24,13 @@
                     <span>Subtotal:</span>
                     <span>${{ "%.2f"|format(subtotal) }}</span>
                 </div>
+                <div class="total-line discount-line" id="discount-line" style="display: none;">
+                    <span id="discount-label">Promo:</span>
+                    <span id="discount-amount">-$0.00</span>
+                </div>
                 <div class="total-line">
                     <span>Tax ({{ "%.1f"|format(tax_rate * 100) }}%):</span>
-                    <span>${{ "%.2f"|format(tax_amount) }}</span>
+                    <span id="tax-amount">${{ "%.2f"|format(tax_amount) }}</span>
                 </div>
                 <div class="total-line" id="tip-line" style="display: none;">
                     <span>Tip:</span>
@@ -37,6 +41,17 @@
                     <strong id="final-total">${{ "%.2f"|format(total) }}</strong>
                 </div>
             </div>
+        </div>
+
+        <!-- Promo Code -->
+        <div class="checkout-section">
+            <h2>Promo Code</h2>
+            <div class="promo-controls">
+                <input type="text" id="promo_input" placeholder="e.g. HALF50" autocomplete="off" class="promo-input">
+                <button type="button" id="applyPromoBtn" class="button">Apply</button>
+            </div>
+            <input type="hidden" id="promo_code" name="promo_code" value="" form="checkoutForm">
+            <p id="promo-message" class="promo-message" role="status"></p>
         </div>
 
         <!-- Tip Selection -->
@@ -52,8 +67,9 @@
             <div class="custom-tip" style="margin-top: 12px;">
                 <label for="custom_tip">Custom Amount:</label>
                 <input type="number" id="custom_tip" name="custom_tip" step="0.01" min="0" placeholder="0.00" style="width: 150px; margin-left: 8px;">
-                <input type="hidden" id="tip_percentage" name="tip_percentage" value="0">
-                <input type="hidden" id="tip_amount" name="tip_amount" value="0">
+                <!-- These sit outside <form>, so form="checkoutForm" is what makes them submit -->
+                <input type="hidden" id="tip_percentage" name="tip_percentage" value="0" form="checkoutForm">
+                <input type="hidden" id="tip_amount" name="tip_amount" value="0" form="checkoutForm">
             </div>
         </div>
 
@@ -74,9 +90,9 @@
             
             <div id="map" style="height: 300px; width: 100%; border-radius: 8px; margin-top: 15px; position: relative; z-index: 1;"></div>
             
-            <input type="hidden" id="delivery_lat" name="delivery_lat">
-            <input type="hidden" id="delivery_lng" name="delivery_lng">
-            <textarea id="delivery_address" name="delivery_address" rows="2" 
+            <input type="hidden" id="delivery_lat" name="delivery_lat" form="checkoutForm">
+            <input type="hidden" id="delivery_lng" name="delivery_lng" form="checkoutForm">
+            <textarea id="delivery_address" name="delivery_address" rows="2" form="checkoutForm"
                       placeholder="Delivery address will appear here..." 
                       style="margin-top: 15px; width: 100%;" required></textarea>
         </div>
@@ -319,9 +335,9 @@
         
         // Wait a bit to ensure container is visible and has dimensions
         setTimeout(function() {
-            // Default location (GSU Campus area) - only use if no center provided
-            const defaultLat = centerLat || 33.7531;
-            const defaultLng = centerLng || -84.3853;
+            // Default location (Grambling State University campus, Grambling, LA) - only use if no center provided
+            const defaultLat = centerLat || 32.5195;
+            const defaultLng = centerLng || -92.7212;
             
             // Check if map already exists
             if (map) {
@@ -785,8 +801,7 @@
 
     // Tip calculation (subtotal already includes tax)
     const subtotal = {{ subtotal }};
-    const taxAmount = {{ tax_amount }};
-    const baseTotal = {{ total }}; // subtotal + tax
+    let baseTotal = {{ total }}; // subtotal - promo discount + tax; updated when a promo is applied
     let selectedTipPercentage = 0;
     let customTipAmount = 0;
 
@@ -858,6 +873,69 @@
             if (tipPercentageInput) tipPercentageInput.value = selectedTipPercentage;
             if (tipAmountInput) tipAmountInput.value = tipValue.toFixed(2);
         }
+
+        // Promo code: validated by /api/promo, then re-validated by the server on submit
+        const promoInput = document.getElementById('promo_input');
+        const promoCodeField = document.getElementById('promo_code');
+        const applyPromoBtn = document.getElementById('applyPromoBtn');
+        const promoMessage = document.getElementById('promo-message');
+        const originalTotal = baseTotal;
+        const originalTax = document.getElementById('tax-amount').textContent;
+
+        function showPromoMessage(text, isError) {
+            promoMessage.textContent = text;
+            promoMessage.classList.toggle('error', isError);
+            promoMessage.classList.toggle('success', !isError);
+        }
+
+        function clearPromo() {
+            promoCodeField.value = '';
+            baseTotal = originalTotal;
+            document.getElementById('discount-line').style.display = 'none';
+            document.getElementById('tax-amount').textContent = originalTax;
+            updateTip();
+        }
+
+        function applyPromo() {
+            const code = promoInput.value.trim();
+            if (!code) {
+                clearPromo();
+                showPromoMessage('Enter a promo code.', true);
+                return;
+            }
+            applyPromoBtn.disabled = true;
+            fetch('{{ url_for("api_promo") }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ code: code })
+            })
+                .then(res => res.json())
+                .then(data => {
+                    if (!data.valid) {
+                        clearPromo();
+                        showPromoMessage(data.error || 'That promo code isn\'t valid.', true);
+                        return;
+                    }
+                    promoCodeField.value = data.code;
+                    baseTotal = data.total;
+                    document.getElementById('discount-label').textContent = 'Promo (' + data.code + ', ' + data.percent_off + '% off):';
+                    document.getElementById('discount-amount').textContent = '-$' + data.discount.toFixed(2);
+                    document.getElementById('discount-line').style.display = 'flex';
+                    document.getElementById('tax-amount').textContent = '$' + data.tax_amount.toFixed(2);
+                    updateTip();
+                    showPromoMessage(data.code + ' applied: ' + data.percent_off + '% off your order.', false);
+                })
+                .catch(() => showPromoMessage('Could not check the code. Please try again.', true))
+                .finally(() => { applyPromoBtn.disabled = false; });
+        }
+
+        applyPromoBtn.addEventListener('click', applyPromo);
+        promoInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                applyPromo();
+            }
+        });
     });
 </script>
 
@@ -1132,6 +1210,38 @@
     background: #d6001c;
     color: #fff;
     border-color: #d6001c;
+}
+
+.discount-line {
+    color: #1e7e34;
+}
+
+.promo-controls {
+    display: flex;
+    gap: 10px;
+}
+
+.promo-input {
+    flex: 1;
+    min-width: 0;
+    padding: 10px 12px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 14px;
+    text-transform: uppercase;
+}
+
+.promo-message {
+    margin: 10px 0 0;
+    font-size: 13px;
+}
+
+.promo-message.success {
+    color: #1e7e34;
+}
+
+.promo-message.error {
+    color: #dc3545;
 }
 
 @media (max-width: 768px) {

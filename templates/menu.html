@@ -46,7 +46,7 @@
                                     {% endif %}
                                 </div>
                                 <p class="price">${{ "%.2f"|format(item.price) }}</p>
-                                <form action="{{ url_for('add_to_cart') }}" method="POST">
+                                <form action="{{ url_for('add_to_cart') }}" method="POST" data-ajax-add-to-cart>
                                     <input type="hidden" name="item_name" value="{{ item.name }}">
                                     <input type="hidden" name="price" value="{{ item.price }}">
                                     <input type="hidden" name="redirect_to" value="{{ url_for('menu_page') }}">
@@ -92,7 +92,7 @@
                             {% endif %}
                         </div>
                         <p class="price">${{ "%.2f"|format(item.price) }}</p>
-                        <form action="{{ url_for('add_to_cart') }}" method="POST">
+                        <form action="{{ url_for('add_to_cart') }}" method="POST" data-ajax-add-to-cart>
                             <input type="hidden" name="item_name" value="{{ item.name }}">
                             <input type="hidden" name="price" value="{{ item.price }}">
                             <input type="hidden" name="redirect_to" value="{{ url_for('menu_page') }}">
@@ -131,7 +131,7 @@ function scrollCarousel(carouselId, direction) {
     const track = carousel.querySelector('.menu-carousel-track');
     const cards = track.querySelectorAll('.menu-card');
     const cardWidth = cards[0] ? cards[0].offsetWidth + 18 : 268; // card width + gap
-    const visibleCards = Math.floor(carousel.offsetWidth / cardWidth);
+    const visibleCards = Math.max(1, Math.floor(carousel.offsetWidth / cardWidth)); // at least 1, or the indicator loop never ends on narrow screens
     const totalCards = cards.length;
     const maxPosition = Math.max(0, totalCards - visibleCards);
     
@@ -152,7 +152,7 @@ function updateCarouselButtons(carouselId) {
     const track = carousel.querySelector('.menu-carousel-track');
     const cards = track.querySelectorAll('.menu-card');
     const cardWidth = cards[0] ? cards[0].offsetWidth + 18 : 268;
-    const visibleCards = Math.floor(carousel.offsetWidth / cardWidth);
+    const visibleCards = Math.max(1, Math.floor(carousel.offsetWidth / cardWidth)); // at least 1, or the indicator loop never ends on narrow screens
     const totalCards = cards.length;
     const maxPosition = Math.max(0, totalCards - visibleCards);
     

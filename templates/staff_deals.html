@@ -5,7 +5,7 @@
     <div class="panel-header">
         <div>
             <h2>🎉 Manage Deals & Promotions</h2>
-            <p class="portal-note">Create special offers that will appear on the homepage and link to Instagram.</p>
+            <p class="portal-note">Create special offers that will appear on the homepage.</p>
         </div>
     </div>
     
@@ -20,8 +20,9 @@
                 <label for="description">Description *</label>
                 <textarea id="description" name="description" rows="3" placeholder="Describe the deal in detail..." required></textarea>
                 
-                <label for="discount">Discount/Promo Text *</label>
-                <input type="text" id="discount" name="discount" placeholder="e.g., 50% OFF or $5 OFF" required>
+                <label for="discount">Promo Code *</label>
+                <input type="text" id="discount" name="discount" placeholder="e.g., HALF50 or SAVE20" required>
+                <small style="color: #666; font-size: 12px;">Customers enter this at checkout. End the code with the percent off (HALF50 = 50% off, SAVE20 = 20% off).</small>
                 
                 <label for="expires_at">Expires At (Optional)</label>
                 <input type="datetime-local" id="expires_at" name="expires_at" placeholder="Leave empty for no expiration">

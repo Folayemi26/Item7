@@ -400,6 +400,7 @@ button.button:hover {
     border-radius: 12px;
     padding: 10px;
     width: 250px;
+    flex-shrink: 0; /* keep full width inside the carousel track; the carousel scrolls instead */
     box-shadow: 0 3px 10px rgba(0,0,0,0.08);
     display: flex;
     flex-direction: column;
@@ -1036,6 +1037,21 @@ textarea {
 .flash-info {
     background-color: #d1ecf1;
     color: #0c5460;
+}
+
+/* Messages shown by JavaScript after fetch() actions (add to cart, claim shift, ...) */
+#flash-toasts {
+    position: fixed;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(420px, calc(100% - 32px));
+    z-index: 2000;
+}
+
+#flash-toasts .flash {
+    font-size: 14px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
 }
 
 .dashboard-grid {
@@ -2115,6 +2131,70 @@ textarea {
     .portal-logo {
         justify-content: flex-start;
     }
+
+    /* Stacked cart: the desktop flex-basis would otherwise become a fixed height */
+    .cart-main,
+    .cart-summary {
+        flex-basis: auto;
+    }
+
+    /* Hamburger nav: links slide in from the right (toggled by toggleMobileMenu() in base.html) */
+    nav {
+        padding: 10px 16px;
+        position: relative;
+    }
+
+    nav .mobile-menu-toggle { /* "nav" prefix outranks the base display:none rule defined later in this file */
+        display: flex;
+        position: relative; /* stays above the open panel so it can close it */
+    }
+
+    nav .nav-links {
+        position: fixed;
+        top: 0;
+        right: -260px;
+        width: 240px;
+        height: 100vh;
+        flex-direction: column;
+        align-items: stretch;
+        padding: 72px 0 24px;
+        background: #d6001c;
+        box-shadow: -4px 0 20px rgba(0, 0, 0, 0.25);
+        transition: right 0.3s ease;
+        z-index: 1000;
+        overflow-y: auto;
+    }
+
+    nav .nav-links.active {
+        right: 0;
+    }
+
+    nav .nav-links a {
+        margin: 0;
+        padding: 14px 24px;
+        font-size: 16px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+    }
+
+    nav .nav-links a:hover::after {
+        display: none;
+    }
+
+    .mobile-menu-backdrop {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.4);
+        z-index: 999;
+    }
+
+    .mobile-menu-backdrop.active {
+        display: block;
+    }
+
+    body.menu-open {
+        overflow: hidden;
+    }
 }
 
 /* ========== MOBILE MENU TOGGLE ========== */
@@ -2234,6 +2314,7 @@ body:has(.staff-layout) main {
     .staff-sidebar {
         position: fixed;
         top: 0;
+        left: auto; /* undo the desktop left:0, which otherwise wins over right and keeps the sidebar on screen */
         right: -260px;
         width: 260px;
         height: 100vh;

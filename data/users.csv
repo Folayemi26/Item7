@@ -1,3 +1,5 @@
 Email,Password,First_Name,Last_Name,Mobile_Number,Address,DOB,Sex,Role,Verified
 charlesozoke2025@gmail.com,pbkdf2:sha256:1000000$uhFI45KgUeRHTOGC$415ad0c67e4688fb458248762f76e61cd94530fe2952b25a47a740d230e15b8f,Charles,Ozoke,3185484570,403 Main street,09/29/2002,M,staff,YES
 charlesozoke2023@gmail.com,pbkdf2:sha256:1000000$vUrCuPdXJNPEbGtv$b64d2be0faac4fdc1c057dc309f4680f6a4b5667b042a909bfd89eb644a4b923,Charles,Ozoke,3185484570,403 Main street,09/29/2002,M,customer,YES
+staff.demo@example.com,pbkdf2:sha256:1000000$PrLaRvw6WkduiqDt$9568a1ed344871d3f3a0def304288782741af952fac1fe0582a2e60af039882b,Jordan,Lee,3185550143,"100 Demo Lane, Grambling, LA",01/15/2000,,staff,YES
+customer.demo@example.com,pbkdf2:sha256:1000000$TuLEXrBJmMKfCCk9$ec219dd1beb3e0cc93679053c78950ad64670cce72e2fef855e8dd92c09e8a5d,Taylor,Smith,3185550143,"100 Demo Lane, Grambling, LA",01/15/2000,,customer,YES

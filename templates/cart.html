@@ -5,12 +5,13 @@
     <h1>Your Cart</h1>
 </div>
 
-{% if not cart %}
+<div id="cart-empty" {% if cart %}hidden{% endif %}>
     <p>Your cart is empty.</p>
     <p><a href="{{ url_for('menu_page') }}" class="button">Go to Menu</a></p>
-{% else %}
+</div>
 
-<div class="cart-layout">
+{% if cart %}
+<div class="cart-layout" id="cart-layout">
     <div class="cart-main">
         <table>
             <tr>
@@ -21,20 +22,20 @@
                 <th>Actions</th>
             </tr>
             {% for name, item in cart.items() %}
-            <tr>
+            <tr class="cart-row" data-item-name="{{ name }}">
                 <td>{{ name }}</td>
                 <td>
-                    <form action="{{ url_for('update_cart') }}" method="POST" style="display:inline;">
+                    <form action="{{ url_for('update_cart') }}" method="POST" class="cart-qty-form" style="display:inline;">
                         <input type="hidden" name="item_name" value="{{ name }}">
-                        <input type="number" name="qty" value="{{ item['qty'] }}" min="1" max="99" style="width:60px; padding:5px;" onchange="this.form.submit()">
+                        <input type="number" name="qty" value="{{ item['qty'] }}" min="1" max="99" style="width:60px; padding:5px;" aria-label="Quantity of {{ name }}">
                     </form>
                 </td>
                 <td>${{ "%.2f"|format(item['price']) }}</td>
-                <td>${{ "%.2f"|format(item['price'] * item['qty']) }}</td>
+                <td class="cart-line-subtotal">${{ "%.2f"|format(item['price'] * item['qty']) }}</td>
                 <td>
-                    <form action="{{ url_for('remove_from_cart') }}" method="POST" style="display:inline;">
+                    <form action="{{ url_for('remove_from_cart') }}" method="POST" class="cart-remove-form" style="display:inline;">
                         <input type="hidden" name="item_name" value="{{ name }}">
-                        <button type="submit" class="button" style="padding:5px 10px; font-size:12px; background-color:#dc3545;" onclick="return confirm('Remove {{ name }} from cart?')">Remove</button>
+                        <button type="submit" class="button" style="padding:5px 10px; font-size:12px; background-color:#dc3545;">Remove</button>
                     </form>
                 </td>
             </tr>
@@ -47,15 +48,15 @@
         <div style="margin-bottom: 12px;">
             <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
                 <span>Subtotal:</span>
-                <span>${{ "%.2f"|format(subtotal) }}</span>
+                <span id="cart-subtotal">${{ "%.2f"|format(subtotal) }}</span>
             </div>
             <div style="display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 13px; color: #666;">
                 <span>Tax ({{ "%.1f"|format(tax_rate * 100) }}%):</span>
-                <span>${{ "%.2f"|format(tax_amount) }}</span>
+                <span id="cart-tax">${{ "%.2f"|format(tax_amount) }}</span>
             </div>
             <div style="display: flex; justify-content: space-between; padding-top: 12px; border-top: 2px solid #d6001c; margin-top: 8px; font-size: 18px; font-weight: 600; color: #d6001c;">
                 <strong>Total:</strong>
-                <strong>${{ "%.2f"|format(total) }}</strong>
+                <strong id="cart-total">${{ "%.2f"|format(total) }}</strong>
             </div>
         </div>
         <p style="font-size:13px; color:#666;">
@@ -65,14 +66,91 @@
             <a href="{{ url_for('menu_page') }}" class="button secondary">Add More Items</a>
         </p>
         <p>
-            <a href="{{ url_for('clear_cart') }}" class="button secondary">Clear Cart</a>
+            <a href="{{ url_for('clear_cart') }}" class="button secondary" id="clear-cart-link">Clear Cart</a>
         </p>
         <p>
             <a href="{{ url_for('checkout') }}" class="button">Proceed to Checkout</a>
         </p>
     </div>
 </div>
-
 {% endif %}
+
+<script>
+// Live cart: quantity changes, removals and clearing go through /api/cart and update the page in place.
+// Without JavaScript the forms above still work as normal POSTs.
+(function() {
+    const layout = document.getElementById('cart-layout');
+    if (!layout) return;
+    const TAX_RATE = {{ tax_rate }};
+    const money = n => '$' + n.toFixed(2);
+
+    function cartRequest(method, url, body) {
+        return fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: body ? JSON.stringify(body) : undefined
+        }).then(res => res.json().then(data => {
+            if (!res.ok) throw new Error(data.error || 'Could not update your cart.');
+            return data;
+        }));
+    }
+
+    // Re-render every number from the cart the server sent back, so the page never drifts from the session
+    function render(cart) {
+        const names = Object.keys(cart);
+        if (names.length === 0) {
+            layout.remove();
+            document.getElementById('cart-empty').hidden = false;
+            setCartCount(0);
+            return;
+        }
+        let subtotal = 0;
+        layout.querySelectorAll('.cart-row').forEach(row => {
+            const item = cart[row.dataset.itemName];
+            if (!item) { row.remove(); return; }
+            const line = item.price * item.qty;
+            subtotal += line;
+            row.querySelector('.cart-line-subtotal').textContent = money(line);
+            row.querySelector('input[name="qty"]').value = item.qty;
+        });
+        const tax = subtotal * TAX_RATE;
+        document.getElementById('cart-subtotal').textContent = money(subtotal);
+        document.getElementById('cart-tax').textContent = money(tax);
+        document.getElementById('cart-total').textContent = money(subtotal + tax);
+        setCartCount(cartItemCount(cart));
+    }
+
+    layout.querySelectorAll('.cart-qty-form').forEach(form => {
+        const input = form.querySelector('input[name="qty"]');
+        let lastGood = input.value;
+        form.addEventListener('submit', e => { e.preventDefault(); input.dispatchEvent(new Event('change')); });
+        input.addEventListener('change', () => {
+            const qty = Math.min(99, Math.max(1, parseInt(input.value, 10) || 1));
+            cartRequest('PUT', '{{ url_for("api_cart_update") }}', { item_name: form.item_name.value, qty: qty })
+                .then(data => { lastGood = qty; render(data.cart); })
+                .catch(err => { input.value = lastGood; showFlash(err.message, 'error'); });
+        });
+    });
+
+    layout.querySelectorAll('.cart-remove-form').forEach(form => {
+        form.addEventListener('submit', e => {
+            e.preventDefault();
+            const name = form.item_name.value;
+            if (!confirm('Remove ' + name + ' from cart?')) return;
+            cartRequest('DELETE', '{{ url_for("api_cart_delete") }}', { item_name: name })
+                .then(data => { render(data.cart); showFlash(data.message, 'success'); })
+                .catch(err => showFlash(err.message, 'error'));
+        });
+    });
+
+    document.getElementById('clear-cart-link').addEventListener('click', e => {
+        e.preventDefault();
+        if (!confirm('Remove all items from your cart?')) return;
+        cartRequest('POST', '{{ url_for("api_cart_clear") }}')
+            .then(data => render(data.cart))
+            .catch(err => showFlash(err.message, 'error'));
+    });
+})();
+</script>
 
 {% endblock %}

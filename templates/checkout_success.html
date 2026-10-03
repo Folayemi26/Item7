@@ -13,6 +13,12 @@
                 <span>Subtotal:</span>
                 <span>${{ "%.2f"|format(subtotal) }}</span>
             </div>
+            {% if discount_amount and discount_amount > 0 %}
+            <div style="display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 13px; color: #1e7e34;">
+                <span>Promo ({{ promo_code }}):</span>
+                <span>-${{ "%.2f"|format(discount_amount) }}</span>
+            </div>
+            {% endif %}
             <div style="display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 13px; color: #666;">
                 <span>Tax:</span>
                 <span>${{ "%.2f"|format(tax_amount) }}</span>

@@ -1,6 +1,7 @@
 import csv
 import os
 import logging
+import re
 import shutil
 from datetime import datetime, date, timedelta
 
@@ -30,6 +31,9 @@ TIME_SLOTS = [
 ]  # 9 AM to 5 PM
 
 WORKING_DAYS = ["Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]  # Monday excluded
+
+# Full column set for shifts.csv. Older files lack Notes/Early_Checkout; writers add them on the fly.
+SHIFT_FIELDNAMES = ["Shift_ID", "Staff_Email", "Date", "Scheduled_Start", "Scheduled_End", "Check_In_Time", "Check_Out_Time", "Break_Start", "Break_End", "Total_Hours", "Status", "Notes", "Early_Checkout"]
 
 # Global cache of staff for quick lookups when needed.
 STAFF = []
@@ -143,7 +147,7 @@ class FoodTruck:
                 "price": 7.99,
                 "category": "Combo",
                 "vegan": False,
-                "image": "burger.svg",
+                "image": "menu/original-chicken-sandwich-combo.jpg",
                 "allergens": ["gluten", "wheat", "egg"],
             },
             {
@@ -152,7 +156,7 @@ class FoodTruck:
                 "price": 8.99,
                 "category": "Combo",
                 "vegan": False,
-                "image": "burger.svg",
+                "image": "menu/classic-burger-combo.jpg",
                 "allergens": ["gluten", "wheat", "egg", "dairy"],
             },
             {
@@ -161,7 +165,7 @@ class FoodTruck:
                 "price": 9.99,
                 "category": "Combo",
                 "vegan": False,
-                "image": "burger.svg",
+                "image": "menu/bbq-pulled-pork-combo.jpg",
                 "allergens": ["gluten", "wheat"],
             },
             {
@@ -170,7 +174,7 @@ class FoodTruck:
                 "price": 10.99,
                 "category": "Combo",
                 "vegan": False,
-                "image": "burger.svg",
+                "image": "menu/double-cheeseburger-combo.jpg",
                 "allergens": ["gluten", "wheat", "egg", "dairy"],
             },
             # Main Dishes
@@ -180,7 +184,7 @@ class FoodTruck:
                 "price": 9.49,
                 "category": "Main",
                 "vegan": False,
-                "image": "wings.svg",
+                "image": "menu/wings-and-wedges-box.jpg",
                 "allergens": ["gluten", "wheat"],
             },
             {
@@ -189,7 +193,7 @@ class FoodTruck:
                 "price": 19.99,
                 "category": "Main",
                 "vegan": False,
-                "image": "bucket.svg",
+                "image": "menu/family-bucket.jpg",
                 "allergens": ["gluten", "wheat"],
             },
             {
@@ -198,7 +202,7 @@ class FoodTruck:
                 "price": 11.99,
                 "category": "Main",
                 "vegan": False,
-                "image": "taco.svg",
+                "image": "menu/fish-tacos-3pc.jpg",
                 "allergens": ["gluten", "wheat", "fish", "dairy"],
             },
             {
@@ -207,7 +211,7 @@ class FoodTruck:
                 "price": 8.99,
                 "category": "Main",
                 "vegan": False,
-                "image": "nachos.svg",
+                "image": "menu/loaded-nachos.jpg",
                 "allergens": ["gluten", "wheat", "dairy"],
             },
             # Vegetarian/Vegan Options
@@ -217,7 +221,7 @@ class FoodTruck:
                 "price": 8.49,
                 "category": "Veg",
                 "vegan": True,
-                "image": "veggie.svg",
+                "image": "menu/veggie-bowl.jpg",
                 "allergens": ["soy"],
             },
             {
@@ -226,7 +230,7 @@ class FoodTruck:
                 "price": 9.25,
                 "category": "Veg",
                 "vegan": True,
-                "image": "veggie.svg",
+                "image": "menu/smoky-tofu-wrap.jpg",
                 "allergens": ["soy", "gluten"],
             },
             {
@@ -235,7 +239,7 @@ class FoodTruck:
                 "price": 7.99,
                 "category": "Veg",
                 "vegan": True,
-                "image": "veggie.svg",
+                "image": "menu/black-bean-burger.jpg",
                 "allergens": ["gluten", "wheat", "soy"],
             },
             # Sides
@@ -245,7 +249,7 @@ class FoodTruck:
                 "price": 3.99,
                 "category": "Side",
                 "vegan": True,
-                "image": "fries.svg",
+                "image": "menu/french-fries.jpg",
                 "allergens": [],
             },
             {
@@ -254,7 +258,7 @@ class FoodTruck:
                 "price": 4.99,
                 "category": "Side",
                 "vegan": False,
-                "image": "fries.svg",
+                "image": "menu/onion-rings.jpg",
                 "allergens": ["gluten", "wheat", "egg"],
             },
             {
@@ -263,7 +267,7 @@ class FoodTruck:
                 "price": 4.99,
                 "category": "Side",
                 "vegan": False,
-                "image": "side.svg",
+                "image": "menu/mac-and-cheese.jpg",
                 "allergens": ["gluten", "wheat", "dairy"],
             },
             {
@@ -272,7 +276,7 @@ class FoodTruck:
                 "price": 2.99,
                 "category": "Side",
                 "vegan": False,
-                "image": "side.svg",
+                "image": "menu/coleslaw.jpg",
                 "allergens": ["dairy", "egg"],
             },
             {
@@ -281,7 +285,7 @@ class FoodTruck:
                 "price": 6.99,
                 "category": "Side",
                 "vegan": False,
-                "image": "fries.svg",
+                "image": "menu/loaded-fries.jpg",
                 "allergens": ["gluten", "dairy"],
             },
             # Drinks
@@ -291,7 +295,7 @@ class FoodTruck:
                 "price": 1.99,
                 "category": "Drink",
                 "vegan": True,
-                "image": "drink.svg",
+                "image": "menu/soft-drink-can.jpg",
                 "allergens": [],
             },
             {
@@ -300,7 +304,7 @@ class FoodTruck:
                 "price": 2.99,
                 "category": "Drink",
                 "vegan": True,
-                "image": "drink.svg",
+                "image": "menu/soft-drink-large.jpg",
                 "allergens": [],
             },
             {
@@ -309,7 +313,7 @@ class FoodTruck:
                 "price": 3.49,
                 "category": "Drink",
                 "vegan": True,
-                "image": "drink.svg",
+                "image": "menu/fresh-lemonade.jpg",
                 "allergens": [],
             },
             {
@@ -318,7 +322,7 @@ class FoodTruck:
                 "price": 2.49,
                 "category": "Drink",
                 "vegan": True,
-                "image": "drink.svg",
+                "image": "menu/iced-tea.jpg",
                 "allergens": [],
             },
             {
@@ -327,7 +331,7 @@ class FoodTruck:
                 "price": 1.49,
                 "category": "Drink",
                 "vegan": True,
-                "image": "drink.svg",
+                "image": "menu/bottled-water.jpg",
                 "allergens": [],
             },
             {
@@ -336,7 +340,7 @@ class FoodTruck:
                 "price": 3.99,
                 "category": "Drink",
                 "vegan": True,
-                "image": "drink.svg",
+                "image": "menu/fresh-orange-juice.jpg",
                 "allergens": [],
             },
             {
@@ -345,7 +349,7 @@ class FoodTruck:
                 "price": 4.99,
                 "category": "Drink",
                 "vegan": False,
-                "image": "drink.svg",
+                "image": "menu/milk-shake.jpg",
                 "allergens": ["dairy"],
             },
         ]
@@ -1143,26 +1147,50 @@ class FoodTruck:
             if not deal.get("is_active", False):
                 continue
             
-            # Check expiration
+            # Check expiration. The staff form's datetime-local input saves "YYYY-MM-DDTHH:MM".
             expires_at = deal.get("expires_at", "")
             if expires_at:
-                try:
-                    expire_date = datetime.strptime(expires_at, "%Y-%m-%d %H:%M:%S")
-                    if expire_date < now:
-                        continue
-                except ValueError:
+                expired = False
+                for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M", "%Y-%m-%d %H:%M"):
                     try:
-                        expire_date = datetime.strptime(expires_at, "%Y-%m-%d")
-                        if expire_date.date() < now.date():
-                            continue
+                        expired = datetime.strptime(expires_at, fmt) < now
+                        break
                     except ValueError:
-                        pass
-            
+                        continue
+                else:
+                    try:
+                        expired = datetime.strptime(expires_at, "%Y-%m-%d").date() < now.date()
+                    except ValueError:
+                        logger.warning(f"Unrecognized expiry format for deal {deal.get('deal_id')}: {expires_at}")
+                if expired:
+                    continue
+
             active_deals.append(deal)
-        
+
         # Sort by created_at (newest first)
         active_deals.sort(key=lambda x: x.get("created_at", ""), reverse=True)
         return active_deals
+
+    def get_deal_by_code(self, code):
+        """
+        Look up an active deal by its promo code (the deal's Discount field, case-insensitive).
+        The percent off comes from the code's trailing digits, e.g. HALF50 -> 50, SAVE20 -> 20.
+        Returns (deal, percent_off) or None if the code is unknown, expired, or has no percentage.
+        """
+        code = (code or "").strip().upper()
+        if not code:
+            return None
+        for deal in self.get_active_deals():
+            if deal.get("discount", "").strip().upper() != code:
+                continue
+            match = re.search(r"(\d+)$", code)
+            if not match:
+                return None
+            percent_off = int(match.group(1))
+            if not 1 <= percent_off <= 90:
+                return None
+            return deal, percent_off
+        return None
     
     # ---------- TIME CLOCK / SHIFT MANAGEMENT ----------
     
@@ -1208,7 +1236,7 @@ class FoodTruck:
                 os.makedirs(os.path.dirname(path), exist_ok=True)
                 with open(path, "w", newline="", encoding="utf-8") as f:
                     writer = csv.writer(f)
-                    writer.writerow(["Shift_ID", "Staff_Email", "Date", "Scheduled_Start", "Scheduled_End", "Check_In_Time", "Check_Out_Time", "Break_Start", "Break_End", "Total_Hours", "Status", "Notes", "Early_Checkout"])
+                    writer.writerow(SHIFT_FIELDNAMES)
             
             if not readable or not writable:
                 logger.error(f"Cannot access shifts CSV: {path}")
@@ -1222,6 +1250,7 @@ class FoodTruck:
             with open(path, "r", newline="", encoding="utf-8") as f:
                 reader = csv.DictReader(f)
                 fieldnames = list(reader.fieldnames or [])
+                fieldnames += [col for col in SHIFT_FIELDNAMES if col not in fieldnames]
                 rows = list(reader)
             
             # Add new shift
@@ -1271,6 +1300,7 @@ class FoodTruck:
             with open(path, "r", newline="", encoding="utf-8") as f:
                 reader = csv.DictReader(f)
                 fieldnames = list(reader.fieldnames or [])
+                fieldnames += [col for col in SHIFT_FIELDNAMES if col not in fieldnames]
                 for row in reader:
                     if row.get("Shift_ID", "") == shift_id:
                         shift_found = True

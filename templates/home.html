@@ -53,7 +53,7 @@
                     {% endif %}
                 </div>
                 <p class="price">${{ "%.2f"|format(item.price) }}</p>
-                <form action="{{ url_for('add_to_cart') }}" method="POST">
+                <form action="{{ url_for('add_to_cart') }}" method="POST" data-ajax-add-to-cart>
                     <input type="hidden" name="item_name" value="{{ item.name }}">
                     <input type="hidden" name="price" value="{{ item.price }}">
                     <input type="hidden" name="redirect_to" value="{{ url_for('home') }}">
@@ -83,14 +83,14 @@
             <div class="contact-icon">📞</div>
             <h3>Call Us</h3>
             <p class="contact-info">
-                <a href="tel:6142904260" class="phone-link">(614) 290-4260</a>
+                <a href="tel:3185550142" class="phone-link">(318) 555-0142</a>
             </p>
             <p class="contact-detail">Open for lunch & late-night cravings</p>
         </div>
         <div class="contact-card">
             <div class="contact-icon">🕐</div>
             <h3>Hours</h3>
-            <p class="contact-info">Monday - Friday</p>
+            <p class="contact-info">Tuesday - Sunday</p>
             <p class="contact-detail">11:00 AM - 10:00 PM</p>
         </div>
     </div>
@@ -101,12 +101,7 @@
     <div class="section-header">
         <div>
             <h2>🎉 Special Deals & Promotions</h2>
-            <div class="section-subtitle">Check out our latest offers and follow us on Instagram for more!</div>
-        </div>
-        <div class="social-links">
-            <a href="https://www.instagram.com/CHARLESS_XN" target="_blank" rel="noopener noreferrer" class="social-link" title="Follow us on Instagram">
-                📷 Follow @CHARLESS_XN
-            </a>
+            <div class="section-subtitle">Check out our latest offers.</div>
         </div>
     </div>
     
@@ -121,8 +116,8 @@
                 <div class="deal-discount">
                     <span class="discount-amount">{{ deal.discount }}</span>
                 </div>
-                <a href="https://www.instagram.com/CHARLESS_XN" target="_blank" rel="noopener noreferrer" class="deal-cta">
-                    View on Instagram →
+                <a href="{{ url_for('menu_page') }}" class="deal-cta">
+                    Order Now →
                 </a>
             </div>
         </div>
@@ -130,9 +125,9 @@
     </div>
     {% else %}
     <div class="no-deals">
-        <p>No active deals at the moment. Check back soon or follow us on Instagram for updates!</p>
-        <a href="https://www.instagram.com/CHARLESS_XN" target="_blank" rel="noopener noreferrer" class="button">
-            📷 Follow @CHARLESS_XN on Instagram
+        <p>No active deals at the moment. Check back soon!</p>
+        <a href="{{ url_for('menu_page') }}" class="button">
+            View Menu
         </a>
     </div>
     {% endif %}

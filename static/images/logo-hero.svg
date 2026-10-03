@@ -32,7 +32,10 @@
     Food Truck
   </text>
   <text x="220" y="212" font-family="Lexend Deca, 'Segoe UI', sans-serif" font-size="16" font-weight="500" fill="#8c4d37">
-    Fresh. Fast. Allergy-aware.
+    Fresh. Fast.
+  </text>
+  <text x="220" y="232" font-family="Lexend Deca, 'Segoe UI', sans-serif" font-size="16" font-weight="500" fill="#8c4d37">
+    Allergy-aware.
   </text>
 </svg>
 

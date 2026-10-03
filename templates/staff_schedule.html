@@ -114,7 +114,7 @@
     </div>
     
     <div class="form-card" style="max-width: 500px;">
-        <form action="{{ url_for('claim_shift') }}" method="POST">
+        <form action="{{ url_for('claim_shift') }}" method="POST" id="claim-shift-form">
             <label for="shift_date">Date</label>
             <input type="date" id="shift_date" name="date" 
                    min="{{ today.isoformat() }}" 
@@ -152,11 +152,13 @@
             <div class="form-actions">
                 <button type="submit" class="button">Claim Shift</button>
             </div>
+            <p id="claim-shift-message" class="claim-shift-message" role="status"></p>
         </form>
     </div>
 </section>
 
-<!-- Upcoming Shifts -->
+<!-- Upcoming Shifts (wrapper is always present so a newly claimed shift can be swapped in without a reload) -->
+<div id="upcoming-shifts">
 {% if upcoming_shifts %}
 <section class="panel-card">
     <div class="panel-header">
@@ -218,6 +220,54 @@
     </div>
 </section>
 {% endif %}
+</div>
+
+<script>
+// Claim a shift without reloading: POST in the background, then refresh only the Upcoming Shifts section
+// from the server-rendered page. Without JavaScript the form posts normally.
+(function() {
+    const form = document.getElementById('claim-shift-form');
+    const message = document.getElementById('claim-shift-message');
+    const button = form.querySelector('button[type="submit"]');
+
+    function showMessage(text, ok) {
+        message.textContent = text;
+        message.classList.toggle('success', ok);
+        message.classList.toggle('error', !ok);
+    }
+
+    function refreshUpcomingShifts() {
+        return fetch(window.location.href, { headers: { 'X-Requested-With': 'fetch' } })
+            .then(res => res.text())
+            .then(html => {
+                const fresh = new DOMParser().parseFromString(html, 'text/html').getElementById('upcoming-shifts');
+                if (fresh) document.getElementById('upcoming-shifts').innerHTML = fresh.innerHTML;
+            });
+    }
+
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        button.disabled = true;
+        showMessage('Claiming shift...', true);
+        fetch(form.action, {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'fetch' },
+            body: new FormData(form)
+        })
+            .then(res => res.json())
+            .then(data => {
+                showMessage(data.message, data.success);
+                if (data.success) {
+                    form.start_time.value = '';
+                    form.end_time.value = '';
+                    return refreshUpcomingShifts();
+                }
+            })
+            .catch(() => showMessage('Could not claim the shift. Please try again.', false))
+            .finally(() => { button.disabled = false; });
+    });
+})();
+</script>
 
 <!-- Work History -->
 {% if past_shifts %}
@@ -418,6 +468,19 @@
 
 .shift-actions {
     margin-left: auto;
+}
+
+.claim-shift-message {
+    margin: 12px 0 0;
+    font-size: 14px;
+}
+
+.claim-shift-message.success {
+    color: #1e7e34;
+}
+
+.claim-shift-message.error {
+    color: #dc3545;
 }
 </style>
 

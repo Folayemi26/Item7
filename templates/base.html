@@ -33,7 +33,7 @@
         {% if not is_staff and not is_admin %}
         <a href="{{ url_for('menu_page') }}">Menu</a>
         <a href="{{ url_for('cart_page') }}">
-            Cart{% if cart_count %} ({{ cart_count }}){% endif %}
+            Cart<span id="nav-cart-count">{% if cart_count %} ({{ cart_count }}){% endif %}</span>
         </a>
         {% endif %}
         {% if user_email %}
@@ -94,6 +94,55 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
+});
+
+// Show a flash message without reloading, styled like the server-rendered ones.
+// It's pinned to the bottom of the screen so it's visible however far the page is scrolled.
+function showFlash(message, category) {
+    let container = document.getElementById('flash-toasts');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'flash-toasts';
+        container.setAttribute('aria-live', 'polite');
+        document.body.appendChild(container);
+    }
+    const flash = document.createElement('div');
+    flash.className = 'flash ' + (category === 'error' ? 'flash-error' : category === 'success' ? 'flash-success' : 'flash-info');
+    flash.setAttribute('role', 'status');
+    flash.textContent = message;
+    container.appendChild(flash);
+    setTimeout(() => flash.remove(), 4000);
+}
+
+function setCartCount(count) {
+    const badge = document.getElementById('nav-cart-count');
+    if (badge) badge.textContent = count > 0 ? ' (' + count + ')' : '';
+}
+
+function cartItemCount(cart) {
+    return Object.values(cart).reduce((sum, item) => sum + (parseInt(item.qty, 10) || 0), 0);
+}
+
+// Add to Cart without leaving the page. Forms keep working as plain POSTs if JavaScript is off.
+document.addEventListener('submit', function(e) {
+    const form = e.target;
+    if (!form.matches('form[data-ajax-add-to-cart]')) return;
+    e.preventDefault();
+    const button = form.querySelector('button[type="submit"]');
+    if (button) button.disabled = true;
+    fetch('{{ url_for("api_cart_add") }}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ item_name: form.item_name.value, price: form.price.value, qty: 1 })
+    })
+        .then(res => res.json().then(data => ({ ok: res.ok, data })))
+        .then(({ ok, data }) => {
+            if (!ok) throw new Error(data.error || 'Could not add item.');
+            setCartCount(cartItemCount(data.cart));
+            showFlash(data.message, 'success');
+        })
+        .catch(err => showFlash(err.message || 'Could not add item. Please try again.', 'error'))
+        .finally(() => { if (button) button.disabled = false; });
 });
 </script>
 

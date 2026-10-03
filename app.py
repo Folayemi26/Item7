@@ -119,6 +119,11 @@ def require_login():
     return None
 
 
+def wants_json():
+    """True when a page's JavaScript sent the request with fetch() and expects JSON back instead of a redirect."""
+    return request.headers.get("X-Requested-With") == "fetch"
+
+
 def require_staff_access():
     login_redirect = require_login()
     if login_redirect:
@@ -1193,6 +1198,59 @@ def remove_from_cart():
     return redirect(url_for("cart_page"))
 
 
+def calculate_promo(code, subtotal):
+    """
+    Validate a promo code against active deals and compute the discounted totals.
+    Returns a dict with code, percent_off, discount, discounted_subtotal, tax_amount and total,
+    or None if the code is not valid.
+    """
+    result = my_truck.get_deal_by_code(code)
+    if not result:
+        return None
+    deal, percent_off = result
+    discount = round(subtotal * percent_off / 100, 2)
+    discounted_subtotal = subtotal - discount
+    tax_amount = discounted_subtotal * TAX_RATE
+    return {
+        "code": deal.get("discount", "").strip().upper(),
+        "percent_off": percent_off,
+        "discount": discount,
+        "discounted_subtotal": discounted_subtotal,
+        "tax_amount": tax_amount,
+        "total": discounted_subtotal + tax_amount,
+    }
+
+
+@app.route("/api/promo", methods=["POST"])
+def api_promo():
+    """POST endpoint that checks a promo code against the current cart"""
+    data = request.get_json(silent=True) or {}
+    code = sanitize_text(data.get("code", ""))
+    if not code:
+        return jsonify({"valid": False, "error": "Enter a promo code."}), 400
+
+    cart = get_cart()
+    try:
+        subtotal = sum(float(item.get("price", 0)) * int(item.get("qty", 0)) for item in cart.values())
+    except (ValueError, TypeError):
+        subtotal = 0
+    if subtotal <= 0:
+        return jsonify({"valid": False, "error": "Your cart is empty."}), 400
+
+    promo = calculate_promo(code, subtotal)
+    if not promo:
+        return jsonify({"valid": False, "error": "That promo code isn't valid or has expired."}), 404
+
+    return jsonify({
+        "valid": True,
+        "code": promo["code"],
+        "percent_off": promo["percent_off"],
+        "discount": promo["discount"],
+        "tax_amount": round(promo["tax_amount"], 2),
+        "total": round(promo["total"], 2),
+    })
+
+
 @app.route("/checkout", methods=["GET", "POST"])
 def checkout():
     try:
@@ -1290,8 +1348,20 @@ def checkout():
                 tip_amount = 0.0
                 tip_percentage = 0.0
             
+            # Re-validate the promo code server-side so the client can't fake a discount
+            promo_code = sanitize_text(request.form.get("promo_code", ""))
+            promo = calculate_promo(promo_code, subtotal) if promo_code else None
+            discount_amount = 0.0
+            if promo:
+                discount_amount = promo["discount"]
+                tax_amount = promo["tax_amount"]
+                total = promo["total"]
+            elif promo_code:
+                flash("That promo code isn't valid or has expired. Your order was not placed.", "error")
+                return redirect(url_for("checkout"))
+
             # Calculate final total with tip (tax already included in total)
-            # total = subtotal + tax, so final_total = subtotal + tax + tip
+            # total = subtotal - discount + tax, so final_total = subtotal - discount + tax + tip
             final_total = total + tip_amount
             
             # Handle Stripe payment
@@ -1335,6 +1405,8 @@ def checkout():
             order_info = items_summary
             if delivery_address:
                 order_info += f" | Delivery: {delivery_address}"
+            if promo:
+                order_info += f" | Promo: {promo['code']} (-${discount_amount:.2f})"
             order_info += f" | Tax: ${tax_amount:.2f}"
             if tip_amount > 0:
                 order_info += f" | Tip: ${tip_amount:.2f}"
@@ -1360,6 +1432,8 @@ def checkout():
                 customer_name=customer_name,
                 total=final_total,
                 subtotal=subtotal,
+                discount_amount=discount_amount,
+                promo_code=promo["code"] if promo else None,
                 tax_amount=tax_amount,
                 tip_amount=tip_amount,
                 payment_method=payment_method,
@@ -1715,54 +1789,58 @@ def book_schedule_submit():
 @app.route("/staff/claim-shift", methods=["POST"])
 def claim_shift():
     """Claim a shift (create a new shift)"""
+    if wants_json() and not (session.get("is_staff") or "admin" in session):
+        return jsonify({"success": False, "message": "Staff portal is restricted to Item7 staff."}), 403
     access_redirect = require_staff_access()
     if access_redirect:
         return access_redirect
-    
+
+    def respond(message, category, status=200):
+        # fetch() callers get JSON so the page can update in place; plain form posts get flash + redirect
+        if wants_json():
+            return jsonify({"success": category == "success", "message": message}), status
+        flash(message, category)
+        return redirect(url_for("staff_schedule"))
+
     user_email = session.get("user_email")
     if not user_email:
-        flash("You must be logged in to claim a shift.", "error")
-        return redirect(url_for("staff_schedule"))
-    
+        return respond("You must be logged in to claim a shift.", "error", 401)
+
     date_str = request.form.get("date", "").strip()
     start_time = request.form.get("start_time", "").strip()
     end_time = request.form.get("end_time", "").strip()
-    
+
     if not all([date_str, start_time, end_time]):
-        flash("Please fill in all fields.", "error")
-        return redirect(url_for("staff_schedule"))
-    
+        return respond("Please fill in all fields.", "error", 400)
+
+    if end_time <= start_time:
+        return respond("End time must be after start time.", "error", 400)
+
     # Validate date is not in the past
     try:
         shift_date = datetime.strptime(date_str, "%Y-%m-%d").date()
         if shift_date < datetime.now().date():
-            flash("Cannot claim shifts in the past.", "error")
-            return redirect(url_for("staff_schedule"))
+            return respond("Cannot claim shifts in the past.", "error", 400)
     except ValueError:
-        flash("Invalid date format.", "error")
-        return redirect(url_for("staff_schedule"))
-    
+        return respond("Invalid date format.", "error", 400)
+
     # Check if user already has a shift on this date
     if hasattr(my_truck, 'load_shifts_from_csv'):
         my_truck.load_shifts_from_csv()
         existing_shifts = my_truck.get_staff_shifts(user_email, date_str)
         if existing_shifts:
-            flash("You already have a shift on this date.", "error")
-            return redirect(url_for("staff_schedule"))
-    
+            return respond("You already have a shift on this date.", "error", 409)
+
     success = my_truck.create_shift(
         staff_email=user_email,
         date=date_str,
         scheduled_start=start_time,
         scheduled_end=end_time,
     )
-    
+
     if success:
-        flash(f"Shift claimed for {date_str} from {start_time} to {end_time}!", "success")
-    else:
-        flash("Error claiming shift. Please try again.", "error")
-    
-    return redirect(url_for("staff_schedule"))
+        return respond(f"Shift claimed for {date_str} from {start_time} to {end_time}!", "success")
+    return respond("Error claiming shift. Please try again.", "error", 500)
 
 
 @app.route("/staff/time-clock/checkin", methods=["POST"])

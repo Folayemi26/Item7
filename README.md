@@ -8,11 +8,25 @@ Flask-based web application for the CS120 "Item7 Food Truck". The site combines 
 
 **Visit the live application:** [https://item7-food-truck.onrender.com](https://item7-food-truck.onrender.com)
 
+> The demo runs on Render's free tier, so the first load after a period of inactivity can take 30–60 seconds while the server wakes up.
+
+### Demo logins
+
+| Role     | Email                       | Password     | What you can try                                   |
+|----------|-----------------------------|--------------|----------------------------------------------------|
+| Staff    | `staff.demo@example.com`    | `Item7demo!` | Staff portal: dashboard, time clock, orders, deals |
+| Customer | `customer.demo@example.com` | `Item7demo!` | Ordering, cart, checkout (try promo code `HALF50`) |
+
+Card payments run in Stripe demo mode: use test card `4242 4242 4242 4242`, any future expiry date and any CVC. No real charges are made.
+
 ---
 
 ## Features
 
-- **Public ordering flow**: view menu, add to cart, checkout with allergy notes.
+- **Public ordering flow**: view menu, add to cart, checkout with allergy notes, tax and tip.
+- **Map-based delivery**: customers pick a delivery address on an interactive Leaflet map at checkout.
+- **Stripe checkout**: card payments via Stripe (runs in a simulated demo mode when no Stripe keys are configured).
+- **Promo codes**: staff create deals with a code (e.g. `HALF50`); customers apply it at checkout and totals update instantly. The server re-validates the code before charging.
 - **CSV persistence**: users, schedules, and orders remain simple files (`data/*.csv`), ideal for course environments.
 - **Role-based authentication**:
   - Customers/guests get the public site only.
@@ -33,7 +47,7 @@ Flask-based web application for the CS120 "Item7 Food Truck". The site combines 
 
 ### Requirements
 
-- Python 3.152
+- Python 3.11
 - Pipenv/venv recommended
 
 ```bash
@@ -62,7 +76,9 @@ When deploying to production (Heroku, Railway, Render, etc.):
 1. Set environment variables in your hosting platform's dashboard
 2. Required: `SECRET_KEY` (generate with: `python -c "import secrets; print(secrets.token_hex(32))"`)
 3. Optional: `ADMIN_EMAILS` (comma-separated admin email addresses)
-4. See `DEPLOYMENT.md` or `RENDER_SETUP.md` for detailed deployment instructions
+4. Optional: `STRIPE_SECRET_KEY` and `STRIPE_PUBLISHABLE_KEY` for real Stripe test-mode payments. Copy the `sk_test_...` and `pk_test_...` keys from [dashboard.stripe.com/test/apikeys](https://dashboard.stripe.com/test/apikeys) into the Render service's Environment settings and redeploy. Without them, checkout runs in demo mode: the card form is simulated and no request reaches Stripe.
+
+`render.yaml` contains the Render service definition.
 
 ---
 
@@ -123,13 +139,22 @@ Every page extends `staff_layout.html`, which provides the left navigation (Dash
 
 ```
 users.csv
-Email,Password,First_Name,Last_Name,Mobile_Number,Address,DOB,Sex,Role
+Email,Password,First_Name,Last_Name,Mobile_Number,Address,DOB,Sex,Role,Verified
 
 schedules.csv
 Manager,Date,Time,staff_Email,staff_Name,work_Time
 
 orders.csv
-Order_ID,Customer_Name,Customer_Email,Item,Allergy_Info,Is_Safe,Timestamp
+Order_ID,Customer_Name,Customer_Email,Item,Allergy_Info,Is_Safe,Timestamp,Status
+
+menu.csv
+Item_ID,Name,Description,Price,Category,Vegan,Image,Allergens
+
+deals.csv
+Deal_ID,Title,Description,Discount,Created_By,Created_At,Expires_At,Is_Active
+
+shifts.csv
+Shift_ID,Staff_Email,Date,Scheduled_Start,Scheduled_End,Check_In_Time,Check_Out_Time,Break_Start,Break_End,Total_Hours,Status
 ```
 
 Files are created automatically (with headers) on first run.
@@ -160,11 +185,5 @@ All routes share consistent error handling and JSON structures.
 
 MIT License. Built for CS120 coursework, inspired by the KFC Shift Manager experience. Contributions welcome via PR.
 
----
-
-## License & Credits
-
-MIT License. Built for CS120 coursework, inspired by the KFC Shift Manager experience. Contributions welcome via PR.
-
----
+Menu photos are from [Unsplash](https://unsplash.com) under the Unsplash License; see [`static/images/menu/CREDITS.md`](static/images/menu/CREDITS.md) for photographers.
 
