@@ -6,7 +6,7 @@ Flask-based web application for the CS120 "Item7 Food Truck". The site combines 
 
 ## Live Demo
 
-**Visit the live application:** [https://item7-food-truck.onrender.com](https://item7-food-truck.onrender.com)
+**Visit the live application:** [https://item7-food-truck-m0db.onrender.com](https://item7-food-truck-m0db.onrender.com)
 
 > The demo runs on Render's free tier, so the first load after a period of inactivity can take 30–60 seconds while the server wakes up.
 
